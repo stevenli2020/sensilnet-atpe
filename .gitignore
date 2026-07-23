@@ -5,5 +5,10 @@ __pycache__/
 htmlcov/
 *.log
 logs/
-venv/
+.venv/
 .env
+*.bat
+matcha_api.py
+matcha_server.log
+mcp_server.py
+start_matcha.sh

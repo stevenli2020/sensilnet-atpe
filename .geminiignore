@@ -1,0 +1,36 @@
+# Python
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data, Logs & Artifacts
+*.log
+*.sqlite3
+*.db
+*.duckdb
+*.parquet
+*.csv
+data/
+outputs/
+logs/
+artifacts/
+
+# Git & IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Node / Web Build
+node_modules/
+dist/
+build/
+.next/
