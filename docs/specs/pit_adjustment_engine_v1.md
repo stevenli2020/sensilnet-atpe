@@ -1,11 +1,11 @@
 # Specification: PIT Corporate-Action Adjustment Engine (`src/data/pit_store.py`)
 
-**Status:** DRAFT — pending Matcha independent review. Not canonical. Not to be marked Resolved/Accepted by Beer under any circumstance (Team Structure v2, Condition 1).
+**Status:** DRAFT — pending independent resolution of open questions below. Not canonical. Not to be marked Resolved/Accepted by Beer under any circumstance (Team Structure v2, Condition 1).
 
 **Author:** Beer (PL / Chief Architect)
 **Risk Category:** PIT / Data Contract (Team Structure v2, Condition 5 — mandatory Matcha review)
 **Depends on:** ARCHITECTURE.md §2.1, §3.1–3.3
-**Version:** v1 — initial draft for trial round
+**Version:** v1.1 — trial round draft, resolution routing added per Sprite approval 2026-07-24
 
 ---
 
@@ -59,7 +59,13 @@ $$f_{\text{div}} = 1 - \frac{D_{i,\tau}}{P_{i,\tau-1}^{\text{raw}} / S_{i,\tau}}
 
 **Rationale:** This is a real gap in §2.1's formula — it defines $f$ as a per-event-type cases function but doesn't say what happens when two event types coincide on the same $\tau$. SGX split-then-dividend-same-day is rare but not impossible (e.g. bonus issue + special dividend on the same ex-date). The order matters: dividend yield should be computed relative to the *post-split* price, since that's the price basis the dividend was actually declared against once both events are effective. Split is applied first in the multiplication.
 
-If this ordering assumption is wrong for a specific historical case, that's exactly the kind of thing this spec exists to have Matcha (or Cola on a data-audit pass) flag — I'm not fully confident this is the universally correct convention vs. a documented per-event precedence flag SGX itself publishes. Flagging as **open question 1** (see §6).
+**⚠ STATUS: NOT YET INDEPENDENTLY VERIFIED.** This formula reflects Beer's derivation only. Per resolution plan below, it must not be treated as settled until Cola produces an independent blind derivation.
+
+> **Resolution Plan (approved by Sprite 2026-07-24):**
+> Route to **Cola**, blind. Cola is to receive only ARCHITECTURE.md §2.1's per-event $f$ definitions and the same-day split+dividend scenario description — **not** the formula or derivation above — and independently derive the combined factor from first principles, including a worked numeric example (e.g. $S=2$, $P=\$10$, $D=\$0.05$) comparing both possible orderings (split-then-dividend vs. dividend-then-split) to demonstrate why order matters.
+> Cola's result will be compared against the formula above. Match → treated as independently confirmed. Divergence → routed through the Team Structure v2 disagreement loop (Beer response → Cola/Matcha final reply → Sprite decision).
+> Once settled, the confirmed formula must be encoded as a concrete unit test fixture in `tests/test_pit_adjustment.py`, closing Open Question 1 (§6) with a linked test, not just narrative agreement.
+> **Status: PENDING — not yet routed to Cola.**
 
 ### 3.3 Late-arriving corrections to already-published corporate-action records
 
@@ -85,7 +91,11 @@ If `raw_sgx_daily.raw_close` shows a jump >15% overnight with no corresponding r
 
 **Behavior:** Do not auto-correct. Raise `PIT_GAP_SUSPECTED` to the data-quality log (§5) and exclude that `(symbol, trade_date)` from `features_sgx_daily` generation until manually reviewed, rather than silently treating an unadjusted corporate action as a genuine 15% return (which would corrupt both technical indicators computed over that window and the return-target labels in §2.2).
 
-**Open question 3:** Is a hard 15% threshold appropriate for all five pilot-universe names, or should it be volatility-normalized (e.g., relative to trailing ATR)? I set 15% as a placeholder; this needs either historical calibration against known past corporate actions for these five names, or Matcha/Cola input on a better statistical trigger.
+**⚠ STATUS: PLACEHOLDER, NOT CALIBRATED.** The 15% threshold is a guess, not a derived value.
+
+> **Resolution Plan (approved by Sprite 2026-07-24):**
+> Route to **PE**, with Cola available for statistical methodology support if needed. PE pulls actual historical corporate-action dates for the five pilot-universe names (DBS, OCBC, UOB, Singtel, SIA) across available history and measures the realized overnight price gap on each known ex-date. Compare a flat threshold against a volatility-normalized alternative (gap relative to trailing 20-day ATR, consistent with the ATR-percentile convention already established in ARCHITECTURE.md §4.2's regime derivation). Output — either "15% holds empirically" or a specific replacement rule — must be filed as a `docs/decision_log/` entry with the underlying data referenced, not asserted without evidence.
+> **Status: PENDING — not yet routed to PE.**
 
 ---
 
@@ -150,10 +160,10 @@ This is a schema change to an already-approved ARCHITECTURE.md table (3.2's prim
 
 ## 6. Open Questions (explicitly not resolved by this draft)
 
-1. Is split-then-dividend same-date ordering (§3.2) the correct convention, or does SGX/vendor data provide explicit sequencing?
-2. Does Option B (immutable append+supersede, §3.3) match what ARCHITECTURE.md's PIT guarantee actually requires, or is it Beer over-scoping the requirement?
-3. Is a flat 15% gap-detection threshold (§3.4) adequate, or should it be volatility-normalized per symbol?
-4. The primary-key change to `raw_sgx_corporate_actions` (§5) touches a previously-Resolved schema (Finding #6) — does this need to go through the disagreement loop as a reopened finding rather than a fresh one?
+1. Is split-then-dividend same-date ordering (§3.2) the correct convention, or does SGX/vendor data provide explicit sequencing? **→ Routed to Cola, blind derivation. See §3.2 Resolution Plan. PENDING.**
+2. Does Option B (immutable append+supersede, §3.3) match what ARCHITECTURE.md's PIT guarantee actually requires, or is it Beer over-scoping the requirement? **→ Not yet routed. Candidate for Matcha review alongside §5's PK change.**
+3. Is a flat 15% gap-detection threshold (§3.4) adequate, or should it be volatility-normalized per symbol? **→ Routed to PE, historical calibration against pilot-universe data. See §3.4 Resolution Plan. PENDING.**
+4. The primary-key change to `raw_sgx_corporate_actions` (§5) touches a previously-Resolved schema (Finding #6) — does this need to go through the disagreement loop as a reopened finding rather than a fresh one? **→ Sprite/Matcha to confirm process treatment.**
 
 ---
 
@@ -165,4 +175,15 @@ This is a schema change to an already-approved ARCHITECTURE.md table (3.2's prim
 
 ---
 
-**Handoff note for PM:** This draft is ready for evidence-packet versioning and routing to Matcha. Per Condition 1, I am not marking any section of this Resolved — the four open questions in §6 are specifically surfaced for Matcha's independent judgment, not as rhetorical framing.
+## 8. Resolution Routing Log
+
+| Open Question | Routed To | Method | Status | Linked Artifact |
+|---|---|---|---|---|
+| Q1 — §3.2 combined-factor math | Cola | Blind independent derivation + numeric example | PENDING | *(to be filed in `reviews/` once complete)* |
+| Q2 — §3.3 Option B scope | Matcha | Independent review, bundled with §5 PK reopening | NOT YET ROUTED | — |
+| Q3 — §3.4 threshold calibration | PE | Historical data analysis, 5 pilot names | PENDING | *(to be filed in `docs/decision_log/` once complete)* |
+| Q4 — §5 process treatment (reopened Finding #6) | Sprite / Matcha | Process confirmation | NOT YET ROUTED | — |
+
+---
+
+**Handoff note for PM:** This draft is ready for evidence-packet versioning and routing to Matcha, Cola, and PE per §8. Per Condition 1, I am not marking any section of this Resolved — the open questions in §6 are specifically surfaced for independent judgment, not as rhetorical framing. §8 exists so the routing status is trackable without reconstructing it from chat history.
