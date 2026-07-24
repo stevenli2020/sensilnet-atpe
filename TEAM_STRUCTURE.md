@@ -1,228 +1,120 @@
 # Team Structure & Operational Blueprint: Sensilnet ATPE
 
-Document Version: 2.0
+Document Version: 3.0
 Project Name: Sensilnet ATPE
 Full Name: Automated Trading & Prediction Engine
 Target Architecture: Multi-Modal Daily Batch Trading & Prediction Engine for SGX Equities
-Environment: WSL Ubuntu Terminal / Python venv / Gemini CLI / Claude Desktop + MCP / ChatGPT Web UI
+Environment: Claude Code (Pro) / Claude Desktop + Local MCP / ChatGPT Web UI
 
-**Supersedes:** v1.6. v2.0 merges v1.6's operational hardening (deterministic gates, evidence-based Matcha review, reproducibility requirements) with the Team Structure v2 role redesign agreed between Sprite, Beer, and Matcha on 2026-07-24. Everything in v1.6 not explicitly changed below remains in force.
+**Supersedes:** v2.0 in full. This is a clean-slate redesign, re-derived from `docs/INITIAL_PROPOSAL.md` rather than incrementally patched from prior versions, prompted by the availability of Claude Code (Pro) as a persistent-context implementation environment. Drafted by Beer, challenged and refined by Matcha across two review rounds, approved by Sprite on 2026-07-24.
 
 ---
 
 ## 1. Executive Summary & Philosophy
 
-Sensilnet ATPE operates on a flattened multi-agent architecture designed for a solo developer coordinating several AI assistants through explicit local artifacts rather than relying on chat memory.
+The prior three-Gemini-persona split (PL / PM / PE) existed to compensate for a real constraint: each persona was a fresh chat session with no memory of the others' reasoning, so `HANDOFF.md` had to function as a relay baton between them. Claude Code (Pro) removes that constraint — it maintains continuous repository context across planning, implementation, testing, and documentation. Recreating a three-way handoff choreography on top of a tool that doesn't need one would be reintroducing overhead for its own sake.
 
-The system uses **two Gemini operational roles** (PM, PE), **one Claude-based merged Project Leader / Chief Architect role** (Beer), **one Claude-based reserve technical specialist role** (Cola), and **one ChatGPT-based independent review role** (Matcha).
+But collapsing coordination overhead is not the same as collapsing independent judgment. This structure separates **who decides what should be built** from **who builds it** — not for model-diversity reasons (Cola and Beer share a model family and may share blind spots), but because a spec author who never implements can't unconsciously shape a spec to be easy to satisfy, and an implementer who didn't author the spec can't quietly relax a requirement without it surfacing as a visible deviation from someone else's document. That protection is real even without cross-model diversity. Cross-model independence — the check that actually catches what same-family reasoning might miss — remains Matcha's job alone, and nothing in this design should be read as diluting that.
 
-The previous three-Gemini-role design (separate PL, PM, PE, all sharing one underlying model) was consolidated on 2026-07-24: the PL role and the Chief Architect function were merged into a single Claude-based role (Beer), removing a translation layer between architecture decisions and their specification. This consolidation was accepted on the explicit condition that independent review authority does not consolidate alongside it — see §2 and §5.5.
+Governing philosophy, contributed by Matcha and adopted in full:
 
-All three Gemini/Claude implementation-and-architecture roles (PM, PE, Beer) may improve workflow discipline and depth, but **none of them are independent validation authorities on their own output**, and Beer and Cola in particular share the same underlying model family and may share the same blind spots. Independent checks must come from deterministic gates, evidence, genuine model diversity (Matcha), and final human judgment (Sprite).
+> **Minimize AI-to-AI conversation. Maximize artifact-to-AI communication.**
 
-All state and communications between agents are stored in version-controlled local artifacts such as `HANDOFF.md`, `docs/ARCHITECTURE.md`, `docs/SPECIFICATIONS.md`, `docs/decision_log/`, `docs/phase_logs/`, `docs/specs/`, and `reviews/`.
+Debate between Cola, Beer, and Matcha should happen through shared, versioned artifacts (`ARCHITECTURE.md`, ADRs, `reviews/`, `HANDOFF.md`) rather than transient chat exchanges. This is not a stylistic preference — during the design of this very structure, a Matcha review that existed only in a chat session became permanently unrecoverable once that session was lost. The finding was real; it became unusable simply because it was never captured as an artifact. Every review, finding, and architectural decision from this point forward is filed as an artifact at the time it happens, not reconstructed afterward.
 
-The guiding principle is:
+Second governing philosophy, also contributed by Matcha:
 
-> LLMs may plan, implement, review, and challenge, but deterministic evidence and Sprite control acceptance.
+> **Governance should be enforced by simple, objective rules whenever possible; rely on human judgment only where architectural intent cannot be expressed mechanically.**
+
+This shows up concretely in §5 (Protected Sections instead of AI-adjudicated semantic diffing) and throughout the Automated Gatekeeper (§8) — automation handles what's genuinely deterministic; anything requiring judgment about intent goes to a person or to Cola, not to a script pretending to have judgment it doesn't have.
 
 ---
 
 ## 2. Team Composition & Role Definitions
 
-| Role | Agent / Platform | Primary Responsibility | Work Environment |
-| :--- | :--- | :--- | :--- |
-| Sprite | Project Owner / Human | Final approvals, business objectives, API credentials, merge approval, live-trading readiness decisions, finding disposition, and conflict resolution. | WSL Terminal / Browser |
-| Beer | Project Leader + Chief Architect / Claude Desktop + Local MCP | Owns architecture vision and roadmap, authors and maintains `docs/ARCHITECTURE.md` and `docs/specs/*`, defines phase milestones and module contracts, writes proposal responses in the disagreement loop. Writes zero production code. **Does not own finding disposition** (§5.4) and **is not the independent checker on its own output** — see §5.5. | Claude Desktop App with Local MCP |
-| PM | Project Manager / Gemini Gem | Maintains `HANDOFF.md`, decomposes tasks, manages branches, executes deterministic phase gates, archives phase artifacts, converts approved ADPs into ADRs, **records finding disposition status** (never Beer), and verifies canonical-document integrity (non-empty, versioned, paths matching references — see §5.6). | Gemini CLI in WSL |
-| PE | Primary Coding Engineer / Gemini Gem | Writes most production Python code, implements features, writes tests, runs local unit tests, escalates when failure rules trigger, and **may raise an ADP and block implementation** when a specification is contradictory, unsafe, or infeasible — "implementation only" does not mean "implement a known defect" (§5.7). | Gemini CLI in WSL |
-| Cola | Secondary Engineer / Claude Desktop + Local MCP | Full-access **fresh-context specialist**, not an independent tiebreaker (§5.5.3): complex refactoring, difficult debugging, math validation, architecture stress testing, test-gap analysis, and rescue work when PE reaches escalation criteria. No longer a standing gate on every architecture document — invoked for specialist depth, or by Sprite for a second technical opinion. | Claude Desktop App with Local MCP |
-| Matcha | Primary Independent Checker + Technology Advisor / ChatGPT Web UI | **Mandatory independent reviewer** for all material-risk changes (§5.6 risk-tier list) before Sprite disposition. Independent red-team auditor: backtesting logic stress tests, PIT leakage review, strategy risk analysis, edge-case detection, and challenge of weak assumptions. Findings are immutable once filed (§5.4). Advisory authority only — Sprite decides. Receives only manual redacted evidence packets. | ChatGPT Web UI / Isolated Manual Review |
-
----
-
-## 3. Directory Layout & File Communications
-
-```text
-sensilnet-atpe/
-|-- .gemini/
-|   `-- system prompts and Gemini CLI configuration
-|-- docs/
-|   |-- ARCHITECTURE.md
-|   |-- SPECIFICATIONS.md
-|   |-- RISK_REGISTER.md
-|   |-- KNOWN_LIMITATIONS.md
-|   |-- specs/
-|   |   `-- <component>_v<N>.md      (draft specs pending review, e.g. pit_adjustment_engine_v1.md)
-|   |-- decision_log/
-|   |   |-- ADR-001.md
-|   |   `-- ADR-002.md
-|   `-- phase_logs/
-|       |-- phase_1_handoff.md
-|       `-- phase_1_summary.md
-|-- reviews/
-|   |-- REVIEW_FORMAT.md             (governing template and rules — see §5.6.1)
-|   `-- YYYY-MM-DD_<artifact>_<reviewer>.md   (flat, one file per review — supersedes prior inbox/active/completed/rejected subfolder scheme)
-|-- scripts/
-|   `-- phase_gatekeeper.sh
-|-- logs/
-|   `-- test_runner.log
-|-- src/
-|   |-- core/
-|   |-- features/
-|   |-- models/
-|   `-- backtest/
-|-- tests/
-|-- HANDOFF.md
-|-- PROJECT_CONTEXT.md
-|-- TEAM_STRUCTURE.md
-`-- mcp_server.py
-```
-
-**Note on `reviews/`:** v1.6 specified an `inbox/active/completed/rejected` subfolder scheme. As of 2026-07-24 this is superseded by the flat, date-prefixed convention documented in `reviews/REVIEW_FORMAT.md` — one file per review, filed at review time (not as a later cleanup task), named `YYYY-MM-DD_<artifact-name>_<reviewer>.md`. `reviews/REVIEW_FORMAT.md` is the authoritative source for the template and rules; this document defers to it rather than duplicating it.
-
-### File Responsibilities
-
-| File / Folder | Purpose |
-| :--- | :--- |
-| `HANDOFF.md` | Active operational task board only. Current phase, branch, task assignments, blockers, error fingerprints, next action. |
-| `docs/ARCHITECTURE.md` | Master architecture, module boundaries, data flow, major system contracts. Authored by Beer. |
-| `docs/specs/` | Draft component-level specifications pending independent review, before promotion into `ARCHITECTURE.md` or `SPECIFICATIONS.md`. Authored by Beer, status explicitly DRAFT until disposition. |
-| `docs/SPECIFICATIONS.md` | Feature schemas, math definitions, data contracts, model assumptions once promoted out of draft. |
-| `docs/decision_log/` | Permanent Architecture Decision Records. |
-| `docs/RISK_REGISTER.md` | Persistent project risks, mitigations, owners, and review dates. |
-| `docs/KNOWN_LIMITATIONS.md` | Known constraints that future agents should not rediscover repeatedly. |
-| `docs/phase_logs/` | Completed phase handoff archive and concise phase summary. |
-| `reviews/` | Independent review artifacts (Matcha, Cola, Beer disagreement-loop responses). Governed by `reviews/REVIEW_FORMAT.md`. |
-| `PROJECT_CONTEXT.md` | Local-only project snapshot. Must not be sent wholesale to Matcha. Should be treated as local context only. |
-
----
-
-## 4. Master Rules & Operational Protocol
-
-| Rule # | Name | Description |
+| Role | Agent / Platform | Primary Responsibility |
 | :--- | :--- | :--- |
-| Rule 1 | Active Operational Source of Truth | `HANDOFF.md` holds only active work status, task assignments, normalized error fingerprints, blockers, and next actions. Architecture, specifications, risks, decisions, and history belong in dedicated documents. |
-| Rule 2 | Failure Cap & Escalation | PE may make at most two consecutive attempts with the same normalized error fingerprint before marking `BLOCKED` and escalating. |
-| Rule 3 | Branch Isolation & Authority | All implementation work occurs on feature branches. `main` changes only after PM gate passes, required Matcha findings have recorded dispositions, and Sprite approves the merge. |
-| Rule 4 | No Direct Code by Beer | Beer owns architecture and contracts, not production implementation. (Formerly "No Direct Code by PL" — role merged, rule unchanged.) |
-| Rule 5 | Session Flushing | Terminal sessions are terminated at the end of each phase to prevent context degradation. |
-| Rule 6 | Cola & Beer Workspace Access Boundary | Cola and Beer may read, edit, create, refactor, and run project files through Claude Desktop MCP inside the project workspace. Neither may access credentials, broker endpoints, live trading systems, or unrelated personal files. **This boundary must be verified as an environment-level control (container/sandbox scoping, credential relocation), not merely a stated policy** — see RISK_REGISTER entry for outstanding sandboxing hardening status. |
-| Rule 7 | Strict PIT Compliance | No raw future lookups are allowed in feature matrices, labels, validation logic, or backtests. |
-| Rule 8 | Context & Reproducibility | Every experiment must record commit hash, config version, random seeds, data snapshot/version, model version, dependency state, and execution timestamp. |
-| Rule 9 | Evidence-Based Matcha Review | Matcha receives only redacted, task-specific evidence packets. No credentials, secrets, proprietary raw data, or unrestricted full-project context. |
-| Rule 10 | Review Immutability & Disposition Ownership | Matcha findings, once filed, are immutable. Beer may author a response (§5.5) but never edits or marks a finding resolved. Disposition status (Accepted/Deferred/Closed) is recorded by PM and decided by Sprite only — never by Beer. Filed reviews live in `reviews/` per `REVIEW_FORMAT.md` and must not be silently overwritten. |
-| Rule 11 | Research-Only Safety Boundary | Until Sprite approves a separately documented live-trading readiness decision, no agent, MCP tool, script, or environment may access broker credentials, submit orders, alter order limits, or connect to a live trading endpoint. |
-| Rule 12 | Critical-Fault Exception | Architecture is normally frozen within a phase. Potential PIT leakage, invalid labels, data corruption, credential exposure, loss of reproducibility, or live-trading behavior bypasses the freeze and blocks the phase until Sprite and Beer formally resolve it. |
-| Rule 13 | Disposition Separation (Condition 1) | Beer authors proposals and disagreement-loop responses but never owns finding disposition. PM records status; Sprite alone marks a finding Accepted, Deferred, or Closed. |
-| Rule 14 | Bounded Disagreement Loop (Condition 2) | Disputes between Beer and Matcha follow a fixed sequence — see §5.5 — to prevent both silence and unbounded repeated debate from deciding the outcome. |
-| Rule 15 | Model-Diversity Framing (Condition 3) | Cola is never described as an independent tiebreaker between Beer and Matcha. Beer and Cola share a model family and may share blind spots; genuine independence comes from Matcha (different model) and deterministic tests, not from a second Claude-based opinion. |
-| Rule 16 | PE Block Authority (Condition 4) | PE may raise an ADP and halt implementation when a specification is contradictory, unsafe, or infeasible. "Implementation only" scope does not obligate PE to implement a known defect. |
-| Rule 17 | Risk-Tiered Mandatory Review (Condition 5) | Matcha review is mandatory before any material-risk item may be marked Resolved — see §5.6 for the risk category list. Routine prose or low-risk maintenance changes do not require it. |
+| **Sprite** | Human | Business architecture and scope (§4), ADP/ADR approval for business-impacting or protected-section changes, merge approval, credentials, finding disposition (recorded directly — no intermediary role exists to record on Sprite's behalf), conflict resolution. |
+| **Cola** | Chief Architect / Claude Desktop + Local MCP | Owns **technical architecture and architectural intent** (§4) — not "architecture" as a static document, but the underlying decisions about what the system must guarantee (PIT correctness, data contracts, target/label definitions, feature governance). Periodic check-ins during implementation, not continuous oversight. Runs the periodic holistic review (§9). |
+| **Beer** | Implementation Authority / Claude Code (Pro) | Owns **implementation architecture** (§4) — coding, testing, documentation, Git operations, `HANDOFF.md` (operational ownership, see §7), ADP drafting when a spec proves wrong in practice or when Beer identifies an implementation-level improvement opportunity. Implements *against* Cola's architectural intent; may freely edit Implementation Notes sections but not Protected Sections (§5). |
+| **Matcha** | Independent Red Team / ChatGPT Web UI | The only genuine cross-model check in the system. Mandatory review for material-risk categories (§6) before Sprite disposition, plus periodic holistic architecture-drift review (§9). Findings immutable once filed (§10). Advisory authority — Sprite decides. |
 
 ---
 
-## 5. Governance
-
-### 5.1 Decision Authority Matrix
-
-| Decision Type | Final Authority |
-| :--- | :--- |
-| Business objective | Sprite |
-| Project scope | Sprite |
-| System architecture | Beer, unless material scope/risk changes require Sprite |
-| Architecture Drift Proposal | Beer or Sprite depending on impact |
-| Implementation details | PE |
-| Complex refactor strategy | Cola, with Sprite approval if high impact |
-| Mathematical correctness (implementation-level) | Cola |
-| Mathematical/architectural correctness (material-risk, §5.6) | Matcha independent review required; Sprite decides |
-| Backtesting risk / PIT leakage concerns | Matcha advises, Sprite decides |
-| Finding disposition (Accepted/Deferred/Closed) | Sprite only — never Beer (Rule 13) |
-| Test acceptance | PM via deterministic gate |
-| Merge to `main` | Sprite |
-| Live trading readiness | Sprite only |
-
-### 5.2 Escalation Matrix
-
-| Problem Type | Escalation Target |
-| :--- | :--- |
-| Syntax, import, typing, or ordinary unit-test failure | PE |
-| Repeated identical failure fingerprint | Cola |
-| Complex refactor | Cola |
-| Mathematical/algorithmic uncertainty (implementation-level) | Cola |
-| Material-risk mathematical or architectural uncertainty (§5.6) | Matcha (mandatory), not Cola alone |
-| Library limitation requiring architecture change | Beer |
-| Backtesting leakage or strategy-risk concern | Matcha |
-| Contradictory, unsafe, or infeasible specification | PE raises ADP and blocks (Rule 16) |
-| Conflicting agent recommendations | Sprite |
-| Business objective conflict | Sprite |
-| Credential, broker, or live-trading concern | Sprite |
-
-### 5.3 Decision Deadlock Rule
-
-If PE, Cola, and Matcha offer incompatible recommendations and an objective test cannot resolve the disagreement, Sprite is the binding decision authority.
-
-The chosen outcome and supporting evidence must be recorded in either:
-
-- an ADR, if it changes architecture;
-- the risk register, if it accepts or mitigates risk;
-- the phase summary, if it is local to the phase.
-
-### 5.4 Confidence Levels
-
-All architectural, technical, or risk recommendations from agents must include:
+## 3. Workflow
 
 ```text
-Confidence: High | Medium | Low
-Evidence Basis: Verified | Inference | Hypothesis
-Reason:
+Sprite (business objective / scope)
+   |
+   v
+Cola (technical architecture + spec, or approves Beer-originated ADP)
+   |
+   v
+Beer / Claude Code (implementation, tests, docs)
+   |
+   v
+Automated Gatekeeper (deterministic script, §8)
+   |
+   v
+Matcha Review (mandatory if material-risk category, §6)
+   |
+   v
+[if Beer disputes a finding -> bounded disagreement loop, §10.1]
+   |
+   v
+Sprite: records disposition (§10), approves merge
 ```
 
-Examples:
+Periodic holistic review (§9) runs on its own cadence, independent of any single change in this pipeline.
+
+---
+
+## 4. The Three-Layer Authority Model
+
+Contributed by Matcha; this is the load-bearing structural idea in v3.0 and resolves an ambiguity that existed in earlier drafts about who decides what.
 
 ```text
-Confidence: High
-Evidence Basis: Verified from pytest and supplied diff
-Reason: The failing test reproduces the PIT leakage under a minimal fixture.
+Sprite   -> owns BUSINESS architecture   (what markets/products, what scope, what risk tolerance)
+Cola     -> owns TECHNICAL architecture  (what the system must guarantee, structurally)
+Beer     -> owns IMPLEMENTATION architecture (how a guarantee is actually built)
 ```
 
-```text
-Confidence: Medium
-Evidence Basis: Inference from supplied architecture
-Reason: The design appears vulnerable to survivorship bias, but the dataset construction code was not included.
-```
+**Worked example, to make the boundary concrete:**
 
-```text
-Confidence: Low
-Evidence Basis: Hypothesis requiring experiment
-Reason: The claim depends on model behavior that has not yet been benchmarked.
-```
+- Sprite: *"We support SGX only, research/paper-trading phase, no live capital yet."* — business scope.
+- Cola: *"Corporate-action adjustments must use immutable append-and-supersede records, not in-place updates, to preserve backtest reproducibility."* — technical architecture / intent.
+- Beer: *"Implemented via a `superseded_action_id` surrogate-key chain in DuckDB, with an as-of subquery selecting the version current at cutoff `t`."* — implementation architecture.
 
-### 5.5 Disagreement Loop Protocol (Condition 2)
+**Intent vs. Decision** (also from Matcha, important distinction): Cola's authority is over *intent*, not necessarily the specific mechanism. "Storage must support efficient columnar analytics" is intent; "use Parquet" is one implementation of that intent. If Beer later proposes DuckDB instead of Parquet, that can be an implementation-level ADP (Beer originates, Cola approves) precisely because it preserves the stated intent rather than changing it. If Beer's proposal would instead *change* the intent — e.g., relaxing the reproducibility guarantee itself — that requires Cola to revisit the underlying architectural decision, not just approve a substitution.
 
-When Matcha files a finding against a Beer-authored artifact and Beer disputes it, the exchange follows a **fixed, bounded sequence**:
+---
 
-```text
-Matcha finding
-  -> Beer technical response with evidence (one reply)
-  -> Matcha final reply (one reply)
-  -> Sprite decision
-```
+## 5. Document Governance — Protected Sections
 
-**Rules governing this loop:**
+Rather than relying on any agent's self-restraint, or asking automated tooling to semantically judge whether an edit changed "architectural intent" (rejected as over-engineering — see §8.4), document sections carry explicit, mechanically-checkable edit authority.
 
-1. **No re-litigation.** Beer gets exactly one response per finding. Matcha gets exactly one final reply. Neither side may re-open the exchange to argue further — if either believes the other's reply introduced a genuinely new point requiring rebuttal, that goes to Sprite as an open question, not as another loop iteration.
-2. **Silence is not resolution.** If Beer does not respond within the disposition window, the finding stands unmodified for Sprite's decision — it is not treated as tacit agreement or automatically closed.
-3. **Sprite's decision is final** and must be recorded in the finding's Disposition table per `REVIEW_FORMAT.md`.
-4. This loop exists in part to prevent an asymmetry where the role with more context and more turns (historically, PL/Beer) can simply out-argue a reviewer by volume rather than by evidence.
+### 5.1 `docs/ARCHITECTURE.md` Section Ownership
 
-#### 5.5.1 Cola Is Not an Independent Tiebreaker (Condition 3)
+| Section | Owner | Edit Rule |
+| :--- | :--- | :--- |
+| Vision / Executive Summary | Cola | Protected — requires approved ADP |
+| Design Principles | Cola | Protected — requires approved ADP |
+| Data Contracts (PIT rules, schemas' semantic meaning) | Cola | Protected — requires approved ADP |
+| Component Responsibilities | Cola | Protected — requires approved ADP |
+| Module Layout | Shared | Beer may propose directly; Cola notified, no ADP required unless it changes a responsibility boundary |
+| Implementation Notes | Beer | Freely editable — reflects as-built detail, not intent |
 
-Cola must never be invoked or described as a tiebreaker between Beer and Matcha. Beer and Cola are both Claude-family reasoners sharing the same underlying training and potential blind spots — a second Claude opinion is not model-independent verification, even though it remains useful as a fresh-context specialist. Genuine independence in this project comes from two sources only: **Matcha** (different model family) and **deterministic tests** (objective, reproducible evidence). Cola's role is specialist debugging and refactor depth, invoked by Sprite or by escalation rules — not as a check on Beer's architecture.
+### 5.2 The Rule
 
-### 5.6 Risk-Tiered Mandatory Review (Condition 5)
+> **Any modification to a Protected Section requires an approved ADP, full stop.** No automated tool attempts to judge whether a given edit is "architectural" — that determination is inherently a matter of intent, not syntax, and is reserved for Cola/Sprite. The Gatekeeper (§8) enforces this mechanically only in the trivial sense of flagging *that* a Protected Section changed, not *whether* the change was appropriate.
 
-Matcha review is **mandatory** before any item in the following categories may be marked Resolved, Accepted, or Closed:
+This applies equally to `docs/specs/*.md` component specs while in DRAFT status — the same section-ownership principle extends to any document Cola originates.
+
+---
+
+## 6. Mandatory Independent Review — Material-Risk Categories
+
+Unchanged in substance from v2.0 — these are domain-correctness risks, not artifacts of the old team structure, and neither review round challenged this list:
 
 - Data source and licence decisions
 - PIT / data contracts (timestamp semantics, adjustment logic, corporate-action handling)
@@ -233,170 +125,21 @@ Matcha review is **mandatory** before any item in the following categories may b
 - Model-selection changes (architecture, loss function, output heads)
 - Major refactors touching more than one subsystem
 
-Routine prose edits, documentation formatting, and low-risk maintenance changes are exempt from mandatory review to avoid creating an unnecessary bottleneck — PM uses judgment on borderline cases and may escalate to Sprite if uncertain whether an item qualifies.
-
-#### 5.6.1 Documentation Integrity Preflight (PM)
-
-Before any phase gate or disposition is finalized, PM verifies:
-
-- Canonical documents referenced in `HANDOFF.md` and disposition records actually exist and are non-empty.
-- Each canonical document carries a version/status header.
-- File paths referenced in disposition matrices match actual file locations.
-- No duplicate/conflicting sources of truth exist for the same content (e.g., a blueprint duplicated across two files).
-
-This requirement exists because `docs/ARCHITECTURE.md` was found empty (0 bytes) on 2026-07-23 despite an earlier disposition matrix claiming it was populated — the claim and the filesystem state had silently diverged. See `reviews/REVIEW_FORMAT.md` Rule 6 for the equivalent same-session-filing requirement for reviews.
-
-### 5.7 PE Block Authority (Condition 4)
-
-PE's "implementation only" scope (§2) does not mean PE must implement a specification known to be contradictory, unsafe, or infeasible. When PE identifies such a defect:
-
-1. PE raises an ADP in `HANDOFF.md` describing the contradiction/hazard, rather than proceeding.
-2. Implementation of the affected task is blocked pending resolution.
-3. Resolution follows the standard ADP lifecycle (§7) — Beer or Sprite adjudicates depending on impact.
-
-This is distinct from PE silently redesigning architecture — PE identifies and blocks, it does not unilaterally resolve.
+Routine implementation work, prose edits, and low-risk maintenance are exempt, to keep Matcha's review meaningful rather than a rubber stamp on everything.
 
 ---
 
-## 6. HANDOFF.md Template
+## 7. HANDOFF.md — Shared, Append-Only Ownership
 
-```markdown
-# Sensilnet ATPE - Active Phase Handoff Board
+Beer owns `HANDOFF.md` **operationally** — it is Beer's task board, updated continuously during implementation. But Sprite, Cola, and Matcha may each append entries relevant to their own domain (a priority note from Sprite, an architectural flag from Cola, a review pointer from Matcha) — Beer does not become the sole bottleneck for recording everything that touches the file.
 
-## Project Phase
-[Example: Phase 1 - Ingestion & PIT Data Infrastructure]
-
-## Active Branch
-feature/phase-1-ingestion
-
-## Current Status
-IN_PROGRESS
+**Rule:** entries are **append-only per author**, tagged with author and timestamp. No agent silently edits or removes another agent's entry — supersede it with a new dated entry if it's out of date, the same immutability discipline already established for `reviews/`.
 
 ---
 
-## Phase Tasks Checklist
+## 8. Automated Gatekeeper
 
-- [x] Beer: Generate system architecture document
-- [x] PM: Initialize repository structure and test scaffolding
-- [ ] PE: Implement PIT data fetcher
-- [ ] PE: Write unit tests and pass local test target
-- [ ] PM: Run candidate gate
-- [ ] Matcha: Conduct mandatory review if item falls under §5.6 risk tiers
-- [ ] Sprite: Record disposition and approve merge
-
----
-
-## Immediate Action Item for Next Agent
-
-Target Agent: PE
-
-Instruction:
-Create `src/core/ingestion/sgx_feed.py` following the schema in `docs/ARCHITECTURE.md`.
-Run the required unit test target.
-If two consecutive failures share the same normalized error fingerprint, mark `BLOCKED` and escalate.
-If the specification itself is contradictory, unsafe, or infeasible, raise an ADP and block instead (Rule 16).
-
----
-
-## Error Fingerprints
-
-### Fingerprint 1
-Status: OPEN
-Failing Test IDs:
-Exception Type:
-Relevant Stack Frame:
-Attempt Count:
-Pass Count Change:
-Notes:
-
----
-
-## Architecture Drift Proposals
-
-### ADP-001
-Status: OPEN
-Phase:
-Raised By:
-Problem:
-Proposed Change:
-Impact:
-Risk:
-Decision Needed From: Beer / Sprite
-Decision:
-Evidence:
-
----
-
-## Blocking Issues / Escalations
-
-Status: GREEN
-
-Escalation Notes:
-N/A
-```
-
----
-
-## 7. Architecture Drift Proposal Process
-
-Architecture is frozen during a phase unless an approved ADP or critical-fault exception applies.
-
-### ADP Lifecycle
-
-```text
-OPEN -> APPROVED -> IMPLEMENTED -> ARCHIVED_AS_ADR
-     -> REJECTED
-     -> DEFERRED
-```
-
-### Rules
-
-- PE or PM may raise an ADP in `HANDOFF.md`.
-- Beer approves ordinary architecture changes.
-- Sprite approves material scope, cost, risk, or live-readiness changes.
-- PM converts only approved and implemented ADPs into ADRs.
-- Rejected ADPs remain in the archived phase handoff but do not become ADRs.
-- Deferred ADPs must include owner, rationale, and target phase.
-
-### ADR Template
-
-```markdown
-# ADR-XXX: [Decision Title]
-
-## Status
-Accepted / Superseded / Deprecated
-
-## Date
-YYYY-MM-DD
-
-## Context
-What problem forced this decision?
-
-## Decision
-What did we decide?
-
-## Alternatives Considered
-What else was considered?
-
-## Consequences
-Benefits, trade-offs, risks, and future maintenance impact.
-
-## Evidence
-Tests, logs, documentation, experiments, or review notes supporting the decision.
-
-## Approved By
-Beer / Sprite
-```
-
----
-
-## 8. Phase Gatekeeper
-
-PM acts as a deterministic verifier, not as a second manual coding agent.
-
-### 8.1 Candidate Gate
-
-Run before commit.
+Deterministic script, run by Beer as part of its own workflow — but deliberately not self-interpreted. Raw output goes into the evidence trail as-is; Beer does not get to summarize a failing gate into a passing narrative.
 
 ```text
 ruff
@@ -405,351 +148,178 @@ mypy
 pytest
 coverage threshold
 pip check
-git diff --check
-secret/unintended-file scan
+clean git status
+no unowned TODO/FIXME/debug prints
+canonical-doc integrity check (non-empty, versioned, paths match references)
+Protected Section change detector (§8.4)
 ```
 
-The candidate gate does not require a clean worktree because valid uncommitted changes are expected before commit.
+### 8.4 Protected Section Change Detector — deliberately simple
 
-### 8.2 Release Gate
+Considered and rejected: semantic diffing to determine whether an edit changed architectural *intent* (e.g., distinguishing "queue" becoming "priority queue" as a meaningful change versus a typo fix). Matcha's objection, adopted in full: *"The gatekeeper is excellent at deterministic checks. It is terrible at semantic governance."*
 
-Run after commit and before merge.
+**Actual mechanism:** the detector flags **any** diff touching the line ranges of a section marked Protected in §5.1, full stop — no judgment about whether the change was substantive. Every flagged diff routes to Cola for a yes/no: does this require an ADP, or was it a formatting/typo fix Cola is comfortable approving inline. The tool's only job is to make sure nothing protected changes *silently*; it does not decide whether a change is acceptable.
+
+---
+
+## 9. Periodic Holistic Review
+
+Contributed by Matcha: material-risk review catches individually dangerous changes, but not architectural drift accumulated from many individually-safe changes over time.
+
+**Cadence:** every 5 phases, or at a milestone Sprite designates, whichever comes first.
+
+**Scope, deliberately broader than a single-change review:**
+1. Does currently-implemented behavior still match currently-documented architectural intent, not just "did each individual change get approved."
+2. Are there Implementation Notes edits that, in aggregate, should have been Protected Section changes but were never flagged individually.
+3. General red-team pass per §11's review scope, applied to the system as a whole rather than one artifact.
+
+Run by Matcha, using an evidence packet Beer/Cola jointly prepare summarizing the phases since the last holistic review.
+
+---
+
+## 10. Finding Disposition & Immutability
+
+Matcha findings, once filed, are **immutable**. Beer may author a response through the bounded disagreement loop (§10.1) but never edits or marks its own finding resolved.
+
+**Disposition is recorded directly by Sprite** — no intermediary recording role exists in this structure (deliberate simplification; Matcha's assessment, adopted: *"Adding another recorder would just introduce ceremony. The important thing is that the decision is immutable once recorded."*).
+
+**Disposition format** (Matcha's structure, adopted verbatim):
 
 ```text
-candidate checks pass against committed SHA
-working tree is clean
-branch is based on expected target
-commit hash is recorded
-phase documentation is updated
-approved ADPs are resolved
-Matcha findings have dispositions (mandatory for §5.6 risk-tier items)
-documentation integrity preflight passed (§5.6.1)
+Finding: <what was found>
+Disposition: Accepted | Deferred | Closed
+Who: Sprite
+Date: YYYY-MM-DD
+Reason: <why this disposition>
 ```
 
-### 8.3 Debug Marker Policy
+### 10.1 Bounded Disagreement Loop
 
-Do not categorically ban every `TODO`, `FIXME`, or `print()`.
-
-Reject:
-
-- accidental debug prints;
-- untracked temporary files;
-- commented-out experimental code;
-- TODO/FIXME markers with no owner or reference.
-
-Allow:
-
-- intentional technical-debt markers linked to an ADR, issue, phase note, or risk-register entry.
-
----
-
-## 9. Phase Execution Lifecycle
-
-1. Beer creates or updates architecture and specification contracts (draft specs land in `docs/specs/` first, per §3).
-2. PM creates a feature branch and initializes `HANDOFF.md`.
-3. PE implements the task, writes tests, and runs local test targets. PE may block via ADP if the spec is defective (Rule 16).
-4. If PE hits two identical error fingerprints or cycles without increasing pass count, PE marks `BLOCKED`.
-5. Cola investigates escalated technical failures using full project workspace access, as a specialist — not as a check on Beer's architecture (§5.5.1).
-6. Beer or Sprite resolves any ADP.
-7. PM runs the candidate gate and prepares the commit.
-8. PM runs the release gate after commit.
-9. Sprite prepares a redacted Matcha evidence packet for any item touching §5.6 risk tiers (mandatory) or on request.
-10. Matcha performs manual red-team review; findings are immutable once filed.
-11. If Beer disputes a finding, the bounded disagreement loop (§5.5) runs.
-12. PM records dispositions for Matcha findings — Sprite decides, PM records, Beer never fills this field.
-13. Sprite approves or rejects merge to `main`.
-14. PM archives `HANDOFF.md` to `docs/phase_logs/phase_N_handoff.md`.
-15. PM writes `docs/phase_logs/phase_N_summary.md`.
-16. Sprite flushes active LLM sessions before the next phase.
-
----
-
-## 10. Phase Summary Format
-
-Each phase summary must be concise and limited to three sections.
-
-```markdown
-# Phase N Summary
-
-## Key Accomplishments
-
-## Technical Debt / Trade-offs Incurred
-
-## Lessons Learned for Next Phase
-```
-
-The phase summary should not merely duplicate the final handoff. If it contains no analysis, it should be shortened.
-
----
-
-## 11. Matcha Review Protocol
-
-Matcha is the project's **primary independent checker** (§2, §5.6) and red-team reviewer — not a routine implementation agent and not the final approval authority.
-
-### 11.1 What Matcha Reviews
-
-Matcha should focus on:
-
-- PIT leakage;
-- survivorship bias;
-- label leakage;
-- backtest validity;
-- corporate actions;
-- exchange-calendar assumptions;
-- slippage and transaction-cost realism;
-- overfitting risk;
-- misleading metrics;
-- fragile model assumptions;
-- hidden data dependency;
-- strategy robustness;
-- failure modes under stressed markets;
-- structural weaknesses in the team/process design itself (e.g., self-certification risk, escalation-authority conflicts).
-
-Review is **mandatory**, not optional, for any item in the §5.6 risk-tier list before it may be marked Resolved.
-
-### 11.2 What Matcha Must Not Receive
-
-Do not send Matcha:
-
-- credentials;
-- API keys;
-- broker details;
-- personal data;
-- proprietary raw datasets;
-- unrestricted project archives;
-- full unredacted `PROJECT_CONTEXT.md`;
-- `.env` files;
-- live trading configuration.
-
-### 11.3 Matcha Evidence Packet Template
-
-```markdown
-# Matcha Review Request
-
-## Request Metadata
-Project:
-Phase:
-Branch:
-Commit Hash:
-Prepared By:
-Date:
-
-## Review Question
-What specifically should Matcha challenge?
-
-## Scope
-What files, modules, or assumptions are in scope?
-
-## Out of Scope
-What should not be reviewed?
-
-## Relevant Architecture / Specification Excerpts
-
-## Relevant Diff Summary
-
-## Test Evidence
-
-## Backtest / PIT Evidence
-
-## Reproducibility Evidence
-- Configuration identifier and hash:
-- Random seed(s):
-- Dataset snapshot/version and retrieval time:
-- Dependency lockfile/environment identifier:
-- Exact command(s) executed:
-- Test/backtest output summary:
-
-## Known Concerns
-
-## Evidence Boundary
-Confirm that this request contains no credentials, personal data, proprietary raw data, or unredacted full-project context.
-```
-
-### 11.4 Matcha Response Requirements
-
-Each Matcha finding should include:
+Unchanged from v2.0 — neither review round challenged this, and it protects against a specific asymmetry (the party with more context/turns out-arguing a reviewer by volume rather than evidence) that's structural, not tied to the old role names.
 
 ```text
-Finding:
-Severity: Critical | High | Medium | Low
-Confidence: High | Medium | Low
-Evidence Basis: Verified | Inference | Hypothesis
-Reason:
-Recommendation:
+Matcha finding
+  -> Beer technical response with evidence (one reply)
+  -> Matcha final reply (one reply)
+  -> Sprite decision
 ```
 
-A confidence label without evidence is not sufficient. All findings are filed in `reviews/` per `REVIEW_FORMAT.md` **within the same working session as the review** (see `REVIEW_FORMAT.md` Rule 6) — not deferred to later cleanup. A review that exists only in a chat transcript is not yet a review.
+No re-litigation. Silence is not tacit agreement — an unanswered finding stands as filed for Sprite's decision.
 
----
+### 10.2 Universal Append-Only Attribution
 
-## 12. Cola Operating Protocol
-
-Cola is allowed full access inside the Sensilnet ATPE project workspace, functioning as a **fresh-context specialist**, not a standing gate and not an independent tiebreaker (§5.5.1, Rule 15).
-
-This includes permission to:
-
-- read project files;
-- inspect diffs;
-- edit project files;
-- create new files inside the project;
-- run tests;
-- run linting;
-- run scripts;
-- perform refactors;
-- investigate stack traces;
-- update documentation when assigned.
-
-Cola must not:
-
-- access `.env` secrets unless Sprite explicitly provides approval for a specific purpose;
-- access broker credentials;
-- connect to live trading endpoints;
-- submit orders;
-- modify personal files outside the project workspace;
-- make irreversible destructive changes without Sprite approval;
-- merge to `main`;
-- approve its own work as final;
-- **be invoked or cited as an independent check on Beer's architecture** — that role belongs to Matcha (§5.5.1).
-
-When Cola writes or modifies code, PM or PE must still run the deterministic gate afterward.
-
-When Cola proposes an architecture change, Beer or Sprite must approve it through the ADP process.
-
-**Environment boundary note:** As of 2026-07-24, credential relocation (removal of a PAT file previously reachable via parent-directory traversal) has been completed, and sudo access from Cola/Beer sessions requires a password neither role can supply. Full container/namespace-level sandboxing (Docker or bubblewrap scoping the MCP server to the workspace root) remains an open hardening item — see `docs/RISK_REGISTER.md` — and must be completed before any broker or live-trading credentials are introduced to this environment (Rule 11).
-
----
-
-## 13. Reproducibility Requirements
-
-Every meaningful experiment, model training run, feature-generation run, or backtest must record:
+Contributed by Matcha, extended beyond `reviews/` to every artifact type in the system: reviews, ADPs, and architecture comments are never silently rewritten by another agent. Append or supersede, always with attribution.
 
 ```text
-Git commit hash
-Branch name
-Configuration identifier
-Configuration hash
-Random seed(s)
-Dataset snapshot/version
-Data retrieval timestamp
-Model version
-Dependency lockfile or environment identifier
-Execution timestamp
-Exact command
-Output artifact path
-Summary metrics
-Known caveats
+Author: <Sprite | Cola | Beer | Matcha>
+Timestamp: <when>
+Content: <observation | recommendation | reason | evidence>
 ```
-
-Any result that cannot be reproduced should be treated as exploratory only and must not support a major architecture or trading decision.
 
 ---
 
-## 14. Risk Register
+## 11. Matcha Review Scope
 
-`docs/RISK_REGISTER.md` should track persistent risks.
+Carried forward from v2.0 — domain-correctness concerns, not process artifacts:
 
-Example format:
+- PIT leakage; survivorship bias; label leakage
+- Backtest validity; corporate-action handling; exchange-calendar assumptions
+- Slippage and transaction-cost realism; overfitting risk; misleading metrics
+- Fragile model assumptions; hidden data dependency; strategy robustness under stressed markets
+- Structural weaknesses in the team/process design itself
 
-```markdown
-# Risk Register
-
-## RISK-001: Point-In-Time Leakage
-
-Status: Open
-Severity: Critical
-Owner: Beer
-First Identified: YYYY-MM-DD
-Last Reviewed: YYYY-MM-DD
-
-### Description
-
-### Current Mitigation
-
-### Evidence
-
-### Next Review
-```
-
-Recommended standing risks:
-
-- PIT leakage;
-- survivorship bias;
-- corporate-action handling;
-- exchange-calendar mismatch;
-- stale or revised data;
-- label leakage;
-- overfitting;
-- unrealistic slippage;
-- transaction-cost underestimation;
-- reproducibility failure;
-- dependency instability;
-- credential exposure;
-- accidental live-trading access;
-- **incomplete environment sandboxing (Cola/Beer MCP access broader than workspace-scoped — open as of 2026-07-24).**
+**What Matcha must never receive:** credentials, API keys, broker details, personal data, proprietary raw datasets, unrestricted project archives, `.env` files, live trading configuration. Evidence packets are manually redacted per §11 of the retired v2.0 protocol — unchanged, re-adopted here in full (see `reviews/REVIEW_FORMAT.md` for the packet template, which survives this clean-slate rewrite as process-neutral).
 
 ---
 
-## 15. Known Limitations
+## 12. Architecture Drift Proposal (ADP) Process
 
-`docs/KNOWN_LIMITATIONS.md` should preserve accepted limitations so future agents do not rediscover the same constraints.
-
-Example:
-
-```markdown
-# Known Limitations
-
-## LIMIT-001: Daily Timeframe Only
-
-Status: Accepted
-Reason:
-The current engine is designed for daily batch research and not intraday execution.
-
-Impact:
-Intraday signals, order-book dynamics, and real-time latency are out of scope.
-
-Mitigation:
-Revisit only after daily system is stable and reproducible.
+```text
+OPEN -> APPROVED -> IMPLEMENTED -> ARCHIVED_AS_ADR
+     -> REJECTED
+     -> DEFERRED
 ```
+
+- **Beer-originated ADPs** (implementation-level improvement, or a Cola spec proving contradictory/infeasible in practice): routed to **Cola** for ordinary technical-architecture drift; escalated to **Sprite** only if it touches business scope, cost, or risk tolerance.
+- **Cola-originated ADPs** (technical architecture change): routed to **Sprite** if it touches business-layer concerns per §4; otherwise Cola may self-approve within technical-architecture authority, logged as an ADR regardless.
+- Beer never implements a Protected Section change without an approved ADP (§5.2) — this is the one absolute rule in the system with no discretionary exception.
+- "Implementation only" does not mean "implement a known defect" — if a Cola spec is contradictory, unsafe, or infeasible as written, Beer stops and drafts an ADP rather than silently patching around it.
+
+---
+
+## 13. Error Escalation
+
+- Escalate after **2 consecutive failures with the same error signature**, or repeated signature-cycling with no test progress. Retry counter resets when the signature changes.
+- **Cola**: hard debugging, refactor strategy, math/algorithm validation.
+- **Sprite**: anything touching business scope or tradeoffs, or where Cola and Beer cannot resolve a technical dispute (Decision Deadlock — unchanged from v2.0 §5.3: incompatible recommendations with no objective test to resolve them go to Sprite, and the outcome must be recorded as an ADR, risk-register entry, or phase-log entry as appropriate).
+
+---
+
+## 14. Minimal Document Set
+
+| Document | Owner | Purpose |
+| :--- | :--- | :--- |
+| `docs/ARCHITECTURE.md` | Cola (Protected Sections), Beer (Implementation Notes) — see §5.1 | Canonical system design |
+| `docs/specs/*.md` | Cola | Component-level specs, DRAFT until Matcha review clears + Sprite disposition |
+| `HANDOFF.md` | Beer (operational), append-only shared per §7 | Active task/phase state |
+| `docs/decision_log/` (ADRs) | Drafted by originating agent, approved per §12 | Permanent record of resolved ADPs |
+| `docs/RISK_REGISTER.md` | Cola | Persistent domain risks |
+| `docs/KNOWN_LIMITATIONS.md` | Cola | Accepted constraints |
+| `reviews/` | Matcha, Cola, Beer (disagreement-loop responses) | Independent review artifacts — same-session filing, immutable, per `reviews/REVIEW_FORMAT.md` |
+| `requirements.txt` | Beer | Dependency pinning, generated from actual environment, not hand-typed |
+| `CLAUDE.md` | Beer, reviewed by Cola | Repository guide for Claude Code — conventions, commands, architecture map, common pitfalls. Not for humans; for keeping Claude Code consistently effective. See root `CLAUDE.md`. |
+
+No `SPECIFICATIONS.md` / `ARCHITECTURE.md` split unless it proves necessary in practice. Documents get created because they solve an actual problem, not for speculative completeness — this call was explicitly affirmed by Matcha as good engineering during review and is retained deliberately.
+
+---
+
+## 15. Known Hard Problems — Carried Forward as Verification Targets, Not Inherited Solutions
+
+These are domain-correctness facts, not process artifacts, so the clean-slate rewrite does not discard them — but Cola's fresh technical-architecture pass should explicitly re-verify each rather than either (a) blindly re-importing the old answer unexamined, or (b) rediscovering the problem from scratch the hard way:
+
+1. Corporate-action PIT correctness — same-day multiple-action ordering, and whether corrections to already-published corporate-action data require immutable-append semantics to preserve backtest reproducibility.
+2. Horizon/target synchronization between whatever math spec Cola writes and whatever schema Beer implements — these drifted out of sync once already in the project's history.
+3. Any composite/derived signal (e.g., a regime classification) needs an explicit, checkable aggregation rule from its inputs — never an implied one.
+4. Transaction cost model completeness — whatever is claimed in prose must match what is actually itemized in the cost calculation, with no silently-dropped line items.
 
 ---
 
 ## 16. Final Role Boundary
 
 ```text
-Claude Beer:
-Merged Project Leader + Chief Architect. Architecture, specifications, contracts,
-ordinary ADP approval, disagreement-loop responses. Writes zero production code.
-Never owns finding disposition.
-
-Gemini PM:
-Task board, deterministic gates, phase archives, ADR conversion, branch hygiene,
-finding disposition recording, documentation integrity preflight.
-
-Gemini PE:
-Routine implementation, tests, local debugging, initial fixes, and ADP-raising
-block authority against contradictory/unsafe/infeasible specifications.
-
-Claude Cola:
-Full-access fresh-context specialist for hard debugging, refactoring, math
-validation, and escalation support. Not an independent tiebreaker.
-
-ChatGPT Matcha:
-Primary independent checker. Mandatory reviewer for all material-risk changes.
-Manual red-team reviewer using redacted evidence packets only. Findings immutable
-once filed. Advisory authority — Sprite decides.
-
 Sprite:
-Final decision authority, merge approval, credential control, live-trading
-authority, and sole owner of finding disposition.
+  Business architecture and scope. ADP/ADR approval for business-impacting
+  or Protected Section changes. Merge approval. Credentials. Sole owner of
+  finding disposition, recorded directly (§10).
+
+Cola (Claude Desktop + Local MCP):
+  Technical architecture and architectural intent. Owns Protected Sections
+  of ARCHITECTURE.md and all specs in docs/specs/. Periodic check-ins
+  during implementation, not continuous oversight. Runs the periodic
+  holistic review (§9).
+
+Beer (Claude Code, Pro):
+  Implementation architecture. Sole implementation authority: coding,
+  testing, documentation, Git, operational HANDOFF.md ownership. May
+  freely edit Implementation Notes; may never edit a Protected Section
+  without an approved ADP. May originate ADPs for implementation-level
+  improvements or when a Cola spec proves contradictory in practice.
+
+Matcha (ChatGPT Web UI):
+  The only genuine cross-model, independent check in the system.
+  Mandatory reviewer for material-risk categories (§6) and periodic
+  holistic review (§9). Findings immutable once filed. Advisory
+  authority only — Sprite decides.
 ```
 
-The operational philosophy is:
+Operational philosophy:
 
-> Use Gemini for throughput, Claude (Beer) for architecture depth, Claude (Cola) for specialist technical depth, ChatGPT (Matcha) for genuine independent challenge, deterministic tools for evidence, and Sprite for judgment.
+> Use Cola for architectural depth and fresh judgment, Claude Code (Beer) for implementation velocity with persistent repository context, Matcha for genuine independent challenge, deterministic automation for evidence, and Sprite for judgment where intent cannot be expressed mechanically.
 
 ---
 
 ## Changelog
 
-- **v2.0 (2026-07-24):** Merged PL role into Beer (Claude, Project Leader + Chief Architect). Demoted Cola from standing architecture gate to reserve specialist (Rule 15, §5.5.1). Promoted Matcha to primary independent checker with mandatory review for material-risk categories (§5.6, Rule 17). Added bounded disagreement loop (§5.5, Rule 14). Added disposition-ownership separation (§5.4/§5.6, Rule 13) following the empty-`ARCHITECTURE.md` incident. Added PE block authority (§5.7, Rule 16). Added documentation-integrity preflight (§5.6.1). Updated `reviews/` to flat same-session-filing convention per `REVIEW_FORMAT.md`. Added environment-boundary status note to Cola protocol (§12) following credential-relocation and sudo-lockdown verification.
-- **v1.6:** Prior version — see git history. Hardened original three-Gemini-role design with explicit non-independence caveat and deterministic-evidence philosophy.
+- **v3.0 (2026-07-24):** Full clean-slate redesign for the Claude Code (Pro) era, re-derived from `docs/INITIAL_PROPOSAL.md` rather than incrementally patched. Collapsed PL/PM/PE into a single implementation authority (Beer, Claude Code) while explicitly preserving Cola as a separate technical-architecture authority — not for model-diversity reasons, but to prevent self-serving spec drift. Introduced the three-layer authority model (Sprite/business — Cola/technical — Beer/implementation, contributed by Matcha). Introduced Protected Sections as a deterministic alternative to AI-adjudicated semantic diffing (Matcha's objection to semantic gatekeeping, adopted in full). Introduced periodic holistic review to catch accumulated architectural drift that material-risk-only review misses. Moved finding disposition to direct Sprite recording, eliminating the intermediary recorder role as unnecessary ceremony (Matcha's assessment). Adopted universal append-only attribution across all artifact types. Added `CLAUDE.md` as a missing artifact identified during review. Retained unchanged from v2.0: bounded disagreement loop, material-risk mandatory review category list, `reviews/REVIEW_FORMAT.md`, Decision Deadlock Rule, evidence-packet redaction discipline for Matcha.
+- **v2.0 (2026-07-24, retired same-day):** Merged PL role into Beer within the prior three-Gemini-persona-plus-Claude-plus-ChatGPT structure. Superseded in full by v3.0 following the introduction of Claude Code (Pro) as an implementation environment.
+- **v1.6:** Prior version — see git history.
