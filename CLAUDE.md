@@ -1,8 +1,8 @@
 # CLAUDE.md — Repository Guide for Claude Code
 
-**Purpose:** This file exists to keep Claude Code (operating as "Beer," the implementation authority — see `TEAM_STRUCTURE.md`) consistently effective across sessions. It is not written for humans; it is written so that a fresh Claude Code session can orient itself quickly without re-deriving conventions from scratch or drifting from established patterns.
+**Purpose:** This file exists to keep Claude Code (operating as "Beer," the implementation authority — see `WORKFLOWS.md`) consistently effective across sessions. It is not written for humans; it is written so that a fresh Claude Code session can orient itself quickly without re-deriving conventions from scratch or drifting from established patterns.
 
-**Governance context:** Read `TEAM_STRUCTURE.md` first if this is a new session with no prior context on the project's process. This file assumes familiarity with that document and focuses on repository-specific mechanics.
+**Governance context:** Read `WORKFLOWS.md` first if this is a new session with no prior context on the project's process. This file assumes familiarity with that document and focuses on repository-specific mechanics.
 
 ---
 
@@ -14,7 +14,7 @@ Sensilnet ATPE (Automated Trading & Prediction Engine) — a daily-batch, Point-
 
 ## 2. Before You Touch Anything: Protected Sections
 
-`docs/ARCHITECTURE.md` and `docs/specs/*.md` have sections with different edit authority. See `TEAM_STRUCTURE.md` §5 for the full table. The short version:
+`docs/ARCHITECTURE.md` and `docs/specs/*.md` have sections with different edit authority. See `WORKFLOWS.md` §5 for the full table. The short version:
 
 - **Vision, Design Principles, Data Contracts, Component Responsibilities → Cola's authority.** Do not edit these directly. If you believe one needs to change, draft an ADP (see §5 below) instead of editing the file.
 - **Implementation Notes → yours to edit freely.**
@@ -55,7 +55,7 @@ pytest tests/<path> -v
 # .venv already exists at project root — activate it, do not create a second one
 ```
 
-Do not summarize a failing gate result into a passing narrative. Raw gatekeeper output goes into the evidence trail as-is — this is a hard rule from `TEAM_STRUCTURE.md` §8, not a style preference.
+Do not summarize a failing gate result into a passing narrative. Raw gatekeeper output goes into the evidence trail as-is — this is a hard rule from `WORKFLOWS.md` §8, not a style preference.
 
 ---
 
@@ -67,7 +67,7 @@ Draft an ADP in `HANDOFF.md` instead of proceeding when:
 - You've identified an implementation-level improvement (e.g., a simpler module boundary) that touches a Protected Section.
 - You've hit the error-escalation threshold: 2 consecutive failures with the same error signature, or repeated signature-cycling with no test progress.
 
-Do not silently patch around a bad spec. Do not implement a known defect because the spec technically calls for it. Stop, document the conflict, route to Cola (or Sprite if it's business-scope-level — see `TEAM_STRUCTURE.md` §4).
+Do not silently patch around a bad spec. Do not implement a known defect because the spec technically calls for it. Stop, document the conflict, route to Cola (or Sprite if it's business-scope-level — see `WORKFLOWS.md` §4).
 
 ---
 
@@ -80,7 +80,7 @@ You own `HANDOFF.md` operationally, but it's append-only-per-author once other a
 ## 7. Repository Norms
 
 - **Never commit directly to `main`.** All implementation work happens on feature branches; Sprite approves merges.
-- **Never mark a Matcha finding resolved yourself.** You may respond to a finding (one bounded reply, see `TEAM_STRUCTURE.md` §10.1); disposition is Sprite's alone.
+- **Never mark a Matcha finding resolved yourself.** You may respond to a finding (one bounded reply, see `WORKFLOWS.md` §10.1); disposition is Sprite's alone.
 - **File reviews same-session, not retroactively.** If you're ever in a position to file a review-like artifact, do it before the session ends — see `reviews/REVIEW_FORMAT.md` Rule 6 for why this matters (a real review was lost this way once already on this project).
 - **Generate `requirements.txt` from a real environment**, not by hand-listing what you believe is installed — freeze against the actual `.venv`.
 

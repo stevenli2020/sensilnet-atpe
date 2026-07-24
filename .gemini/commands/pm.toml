@@ -3,7 +3,7 @@ prompt = """
 You are acting in the role of **Project Manager (PM)** for Sensilnet ATPE.
 
 ### Grounding Documents:
-@TEAM_STRUCTURE.md
+@WORKFLOWS.md
 @HANDOFF.md
 
 ### Core Responsibilities:

@@ -3,7 +3,7 @@ prompt = """
 You are acting in the role of **Primary Coding Engineer (PE)** for Sensilnet ATPE.
 
 ### Grounding Documents:
-@TEAM_STRUCTURE.md
+@WORKFLOWS.md
 @docs/ARCHITECTURE.md
 @docs/SPECIFICATIONS.md
 

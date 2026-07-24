@@ -4,9 +4,9 @@
 
 ---
 
-## Document Governance (added 2026-07-24, TEAM_STRUCTURE.md v3.0)
+## Document Governance (added 2026-07-24, WORKFLOWS.md v3.0)
 
-This document has **Protected Sections** and **Implementation Notes** sections with different edit authority. See `TEAM_STRUCTURE.md` §5 for the full rule. Summary:
+This document has **Protected Sections** and **Implementation Notes** sections with different edit authority. See `WORKFLOWS.md` §5 for the full rule. Summary:
 
 | Section Below | Classification | Edit Authority |
 | :--- | :--- | :--- |
@@ -18,7 +18,7 @@ This document has **Protected Sections** and **Implementation Notes** sections w
 | §6 Disposition Matrix for Audit Findings | Historical record | Append-only — do not edit past entries, add new rows for new findings |
 | §7 Handoff Contract | Implementation Notes | Beer — freely editable, reflects current operational process |
 
-Any diff touching a Protected Section must be accompanied by a linked, approved ADP in `docs/decision_log/` or it should be treated as a gatekeeper violation per `TEAM_STRUCTURE.md` §8.4.
+Any diff touching a Protected Section must be accompanied by a linked, approved ADP in `docs/decision_log/` or it should be treated as a gatekeeper violation per `WORKFLOWS.md` §8.4.
 
 ---
 
@@ -339,7 +339,7 @@ CREATE TABLE IF NOT EXISTS features_sgx_daily (
 | 8 | Document Location | Resolved | Consolidated master technical specification directly into `docs/ARCHITECTURE.md`. |
 | 9 | Gatekeeping Authority | Resolved | Updated Phase 3 verification gate wording to reflect Sprite as the final sign-off authority (Matcha advises, Sprite decides). |
 | 10 | Market Regime Semantics | Resolved | Added explicit aggregation protocol in Section 4.2 mapping per-article news sentiment polarity and technical volatility (ADX/ATR) into daily categorical `market_regime_code`. |
-| 11 | Team Structure Realignment | Noted, not a technical finding | Document governance table added 2026-07-24 reflecting TEAM_STRUCTURE.md v3.0 (Cola as Chief Architect / Protected Section owner, Beer as Claude Code implementation authority). §7 below updated to remove stale PM/PE references. See `TEAM_STRUCTURE.md` for full role definitions. |
+| 11 | Team Structure Realignment | Noted, not a technical finding | Document governance table added 2026-07-24 reflecting WORKFLOWS.md v3.0 (Cola as Chief Architect / Protected Section owner, Beer as Claude Code implementation authority). §7 below updated to remove stale PM/PE references. See `WORKFLOWS.md` for full role definitions. |
 
 ---
 
@@ -347,14 +347,14 @@ CREATE TABLE IF NOT EXISTS features_sgx_daily (
 
 *(Implementation Notes — Beer may edit this section freely; it reflects current operational process, not architectural intent.)*
 
-**Updated 2026-07-24** to reflect TEAM_STRUCTURE.md v3.0. This section previously referenced "PM" and "PE" roles from the retired three-Gemini-persona structure; those roles no longer exist. Current process:
+**Updated 2026-07-24** to reflect WORKFLOWS.md v3.0. This section previously referenced "PM" and "PE" roles from the retired three-Gemini-persona structure; those roles no longer exist. Current process:
 
 With all schema targets synchronized and regime aggregation rules formalized in this document, Phase 1 initialization proceeds as follows:
 
 1. Beer (Claude Code) initializes the Git feature branch `feature/phase-1-infrastructure`.
 2. Beer populates `HANDOFF.md` with granular implementation tasks for Phase 1 (raw price schema, corporate actions table, and PIT adjustment engine per `docs/specs/pit_adjustment_engine_v1.md`).
-3. Beer works through Task 1.1 (WSL Scaffolding & Virtual Environment Initialization) and subsequent tasks directly, running the Automated Gatekeeper (`TEAM_STRUCTURE.md` §8) before considering any task complete.
-4. Any item touching a material-risk category (`TEAM_STRUCTURE.md` §6) — which includes the PIT adjustment engine — requires mandatory Matcha review before disposition.
+3. Beer works through Task 1.1 (WSL Scaffolding & Virtual Environment Initialization) and subsequent tasks directly, running the Automated Gatekeeper (`WORKFLOWS.md` §8) before considering any task complete.
+4. Any item touching a material-risk category (`WORKFLOWS.md` §6) — which includes the PIT adjustment engine — requires mandatory Matcha review before disposition.
 5. Cola checks in at phase boundaries (or sooner if a Protected Section ADP is raised) rather than continuously.
 
 ---
