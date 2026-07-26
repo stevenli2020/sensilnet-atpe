@@ -1,8 +1,8 @@
 # ADP-002: Bitemporal Data, Source Versioning, and Calendar Availability
 
-**Status:** OPEN
+**Status:** OPEN (amended post-Matcha-review, still pending Sprite disposition)
 **Author:** Cola (Claude Desktop + Local MCP)
-**Date:** 2026-07-26
+**Date:** 2026-07-26 (original); amended 2026-07-26 in response to Matcha review Findings 1 and 2
 **Protected sections affected:** `docs/ARCHITECTURE.md` §2 (Data Contracts — PIT filtration extension), §3 (Schemas — `raw_sgx_ohlcv`, `raw_sgx_corporate_actions`, `raw_sgx_corporate_calendar` revisions), §4.1 (Ingestion & PIT Storage Engine responsibility)
 **Business-layer impact:** None directly — technical data-contract change within Cola's authority.
 **Material-risk category (WORKFLOWS.md §6):** YES — "PIT / data contracts (timestamp semantics, adjustment logic, corporate-action handling)" and "Feature availability and known-future-input encoding." **Mandatory Matcha review required before Sprite disposition.** This is also flagged in `SESSION_HANDOFF.md` §4 as an item requiring "mandatory Matcha review" the moment it's raised — this ADP is that raising.
@@ -46,6 +46,50 @@ Per design-discussion consensus already reached: **this ADP and ADP-003 are the 
 2. What numerical tolerance is appropriate for the PIT-replay gate, and should it be uniform across feature types or set per-feature-type in `feature_definitions`?
 3. Does `event_date_status = 'ESTIMATED'` create a risk that estimated-and-later-wrong earnings dates get used in historical feature construction in a way that's hard to detect after the fact? Should ESTIMATED rows be excluded from Known-Future-Input encoding entirely until CONFIRMED?
 
+---
+
+## Amendment 1 (post-Matcha-review — responds to Finding 1)
+
+**Trigger:** Matcha review, `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`, Finding 1 — "Source versioning still allows provenance gaps in PIT replay." Accepted in full; see Cola response in that review file.
+
+**Gap:** `superseded_by` plus surrogate keys prove the *current* version graph of a logical record, but nothing prevents that graph itself from being mutated (a row's `superseded_by` pointer changed, a row deleted, a correction applied without trace). This means the schema can represent "what we currently believe was available then" without being able to independently prove "what the pipeline actually observed at the time" — a distinction that matters directly for backtest reproducibility and diagnosing whether a historical PIT replay used the same payload as the original run.
+
+**Fix — new table, added to `ARCHITECTURE_v2_PROPOSED.md` §3:**
+
+```sql
+CREATE TABLE IF NOT EXISTS ingestion_events (
+    event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    target_table VARCHAR NOT NULL,      -- e.g. 'raw_sgx_ohlcv'
+    target_record_id UUID NOT NULL,     -- FK to the record_id in target_table
+    event_type VARCHAR NOT NULL CHECK (event_type IN
+        ('OBSERVED', 'CORRECTED', 'SUPERSEDED', 'RETRACTED')),
+    payload_snapshot JSON NOT NULL,     -- the exact payload as received from source
+    source_response_metadata JSON,      -- HTTP status, response headers, request params, etc.
+    retrieved_at TIMESTAMP NOT NULL,
+    logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    -- NOTE: this table permits INSERT only. No UPDATE or DELETE statement
+    -- may target this table in any application code path. Enforced via
+    -- a CI check (grep for UPDATE/DELETE against ingestion_events in the
+    -- codebase) in addition to the database-level convention.
+);
+```
+
+The raw tables (`raw_sgx_ohlcv`, etc., as already amended for versioning) become a **materialized/queryable projection** over this log — the log is the actual source of truth for "what was known when"; the raw tables remain the practical query surface for building PIT-safe features, since replaying the full event log for every query would be impractical. The PIT-replay gate (Phase 1) can now additionally verify: for a given historical `as_of` date, the feature set computed from the raw-table projection matches what a reconstruction from `ingestion_events` up to that date would produce.
+
+**Cost note:** this is an additional insert-only table plus a CI discipline check — not a significant engineering lift, contrary to how "immutable event-sourcing layer" might initially sound. No architectural rework of the ingestion pipeline is required; the adapter layer (§4.1 of the proposed architecture) simply writes to `ingestion_events` in addition to the raw table on every ingest/correction.
+
+## Amendment 2 (post-Matcha-review — responds to Finding 2)
+
+**Trigger:** Matcha review, Finding 2 — "ESTIMATED calendar rows are unsafe as model known-future inputs without a stricter boundary." Accepted in full.
+
+**Gap:** `event_date_status = 'ESTIMATED'` rows were permitted to feed `days_to_earnings` (a precise Known Future Input) with no distinction from `CONFIRMED` rows. Many commercial calendar-data providers backfill historical "estimated" dates using the actual, later-known event date — meaning a naive historical query for "the estimated earnings date as of `t`" can silently return information that was only knowable after `t`. This is a real, documented failure mode in financial data vendors, not a hypothetical edge case.
+
+**Fix, applied to `feature_definitions` / feature-engineering rules (§4.2 of the proposed architecture):**
+
+- `days_to_earnings` (precise day-count) may be computed **only from `CONFIRMED`** rows in `raw_sgx_corporate_calendar`. A `NULL` earnings-proximity value is returned when no `CONFIRMED` row exists for the relevant window — the model must learn to handle missing known-future data rather than receiving a plausible-looking but potentially leaked estimate.
+- A separate, coarser feature, `has_estimated_upcoming_earnings_window` (boolean or a wide bucket such as "next 4–6 weeks," not a precise day count), may be derived from `ESTIMATED` rows where useful, since a coarse signal is far less exploitable via backfill than an exact day-count.
+- Both rules are enforced at the `feature_definitions` level: any feature tagged as sourced from `raw_sgx_corporate_calendar` with `event_date_status = 'ESTIMATED'` cannot reach `validation_status = 'PROMOTED'` if its granularity exceeds the coarse-bucket threshold (checked in the Phase 1/2 feature-registry gate, not left as an unenforced convention).
+
 ## Disposition
 
-*(Pending Matcha review, then Sprite recording per WORKFLOWS.md §10.)*
+*(Pending Matcha final reply, then Sprite recording per WORKFLOWS.md §10.)*

@@ -1,8 +1,8 @@
 # ADP-003: Fundamentals, Filings, and Earnings-Estimates Schema
 
-**Status:** OPEN
+**Status:** OPEN (amended post-Matcha-review, still pending Sprite disposition)
 **Author:** Cola (Claude Desktop + Local MCP)
-**Date:** 2026-07-26
+**Date:** 2026-07-26 (original); amended 2026-07-26 in response to Matcha review Finding 3
 **Protected sections affected:** `docs/ARCHITECTURE.md` §3 (Schemas — new `raw_sgx_fundamentals`, `raw_sgx_announcements` tables), §4.1 (Ingestion responsibility expansion)
 **Business-layer impact:** YES — this ADP's scope and timeline are contingent on the Phase 0 data-rights/coverage evaluation (SGX Data Direct / EODHD / FMP trial), which has cost and vendor-selection implications. **Route to Sprite** per `WORKFLOWS.md` §12 (business-layer concerns: cost, vendor selection).
 **Material-risk category (WORKFLOWS.md §6):** YES — "Data source and licence decisions" (directly) and "Feature availability and known-future-input encoding." **Mandatory Matcha review required before Sprite disposition.**
@@ -30,7 +30,7 @@ Phased approach, sequenced against the Phase 0 vendor trial (not assumed to reso
 - REITs: DPU, NAV per unit, gearing ratio, occupancy rate
 - Industrials/Conglomerates: operating margin, leverage, cash conversion
 
-Preferred source for Phase 2: SGX's licensed announcement/reference feeds. Where a structured feed doesn't cover a sector-specific field, `pdfplumber` + structured LLM extraction from issuer reports is permitted as a **source-backed enrichment and reconciliation workflow** — explicitly not the canonical feed. Every extracted value stores: the original source document reference, extraction method/version, source timestamp, and a `reviewer/validation_status` field (not auto-promoted to `PROMOTED` status in `feature_definitions` without review).
+Preferred source for Phase 2: SGX's licensed announcement/reference feeds. Where a structured feed doesn't cover a sector-specific field, `pdfplumber` + structured LLM extraction from issuer reports is permitted as a **source-backed enrichment and reconciliation workflow** — explicitly not the canonical feed. Every extracted value stores: the original source document reference, extraction method/version, source timestamp, and a `reviewer/validation_status` field (not auto-promoted to `PROMOTED` status in `feature_definitions` without review). **See Amendment 1 below — this boundary is now mechanically enforced, not just stated.**
 
 **Earnings estimates** (for ADP-related `Earnings Revision` lens): analyst forecast/consensus data where the winning provider covers it; fallback to management guidance + historical earnings trend extraction where it doesn't, per `INVESTMENT_PHILOSOPHY.md` §5.7's own stated fallback design.
 
@@ -57,6 +57,33 @@ Blocked on Phase 0 vendor trial results (provider scorecard: symbol/delisted-nam
 
 Foundation-tier, alongside ADP-002 — execute first.
 
+---
+
+## Amendment 1 (post-Matcha-review — responds to Finding 3)
+
+**Trigger:** Matcha review, `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`, Finding 3 — "PDF/LLM extraction can become canonical by accident." Accepted in full; directly answers Open Question 1 above.
+
+**Gap:** The original ADP stated in prose that extraction is "enrichment, not canonical," but the proposed `raw_sgx_fundamentals` schema (`ARCHITECTURE_v2_PROPOSED.md` §3.4) had no field distinguishing a licensed structured-data row from an extracted one, and `validation_status` lived only at the `feature_definitions` level — meaning a feature could be promoted without the underlying row's provenance being checked at all. Once an extracted value sits in the same table shape as vendor-provided fundamentals, downstream code has no way to know which rows carry which evidentiary weight.
+
+**Fix, applied to `raw_sgx_fundamentals` (`ARCHITECTURE_v2_PROPOSED.md` §3.4):**
+
+```sql
+-- Added columns:
+    data_authority VARCHAR NOT NULL CHECK (data_authority IN
+        ('LICENSED_STRUCTURED', 'EXTRACTED_LLM', 'MANUAL_ENTRY')),
+    extraction_method VARCHAR,      -- NULL unless data_authority = 'EXTRACTED_LLM'
+    extraction_doc_ref VARCHAR,     -- pointer to the original stored source document
+    reviewer_id VARCHAR,            -- NULL unless reviewed
+    review_timestamp TIMESTAMP,     -- NULL unless reviewed
+    review_status VARCHAR CHECK (review_status IN ('PENDING','REVIEWED','REJECTED') OR review_status IS NULL)
+```
+
+**Mechanical enforcement, applied to `feature_definitions` (§3.8):**
+
+Any feature whose `source_tables` includes a `raw_sgx_fundamentals` row with `data_authority = 'EXTRACTED_LLM'` **cannot** reach `validation_status = 'PROMOTED'` unless the corresponding source row has `reviewer_id IS NOT NULL AND review_status = 'REVIEWED'`. This is a join-based check run as part of the Phase 1/2 feature-registry gate (§5 of the proposed architecture), not a documentation convention someone has to remember to apply. `LICENSED_STRUCTURED` and `MANUAL_ENTRY` rows are exempt from this specific gate (manual entry carries its own separate operator-sign-off requirement, unchanged from the original ADP).
+
+This closes the gap directly: extraction-derived data can enter the system and be inspected, reconciled, and even used in draft/unpromoted analysis, but it structurally cannot become a promoted model input without a named human reviewer's sign-off recorded against it.
+
 ## Disposition
 
-*(Pending Matcha review, then Sprite recording per WORKFLOWS.md §10.)*
+*(Pending Matcha final reply, then Sprite recording per WORKFLOWS.md §10.)*
