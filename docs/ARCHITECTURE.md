@@ -20,6 +20,8 @@ This document has **Protected Sections** and **Implementation Notes** sections w
 
 Any diff touching a Protected Section must be accompanied by a linked, approved ADP in `docs/decision_log/` or it should be treated as a gatekeeper violation per `WORKFLOWS.md` §8.4.
 
+**Note (2026-07-26):** §1–§4 of this document are superseded in intent by six approved ADPs (`docs/decision_log/ADP-001` through `ADP-006`) and their companion draft `docs/decision_log/ARCHITECTURE_v2_PROPOSED.md`. This canonical document has not yet been rewritten to reflect the v2 design — that rewrite is Phase 1/2 implementation work, tracked in `HANDOFF.md`. Until that rewrite lands, treat the ADPs as authoritative over the text below wherever they conflict.
+
 ---
 
 ## 1. Executive System Overview
@@ -37,6 +39,8 @@ The pilot universe comprises five core STI constituents:
 - Singapore Airlines (C6L.SI)
 
 **Note on Universe Selection:** The inclusion of UOB alongside DBS and OCBC is required for peer-bank contagion and relative-value cross-sectional features. SIA provides macro, transport, and jet-fuel sensitivity.
+
+**See Disposition Matrix Finding #12 below:** this pilot universe remains the dashboard/UI universe under ADP-006 (Approved), but a broader research/training universe is now also part of the architecture for Relative Value coverage. This section's text is retained as historical/dashboard-scope description; it is not the full universe definition going forward.
 
 The primary objective of the engine is to generate daily Point-In-Time (PIT) compliant probabilistic return and directional forecasts using a multi-task Temporal Fusion Transformer (TFT) architecture. Model evaluation is conducted via out-of-sample event-driven backtesting incorporating SGX-specific brokerage commissions, clearing fees, access fees, and market-impact slippage.
 
@@ -268,6 +272,8 @@ CREATE TABLE IF NOT EXISTS features_sgx_daily (
 
 *(Verified disjoint: Bull requires ATR₂₀ < 50th pct, Bear requires ATR₂₀ > 75th pct or Sentiment ≤ −0.20 — no day can satisfy both conditions simultaneously.)*
 
+**See Disposition Matrix Finding #12:** this `market_regime_code` derivation is superseded by `ADP-004-macro-regime-redesign.md` (Approved 2026-07-26), which removes this composite label as a model input entirely. Retained here as historical text pending the v2 architecture rewrite.
+
 - `shap_selector.py`: Applies rolling TreeSHAP feature selection to eliminate collinear predictors before passing feature tensors into the TFT encoder.
 
 ### 4.3 Model Architecture Subsystem (`src/models/`)
@@ -278,6 +284,8 @@ CREATE TABLE IF NOT EXISTS features_sgx_daily (
 - **Known Future Inputs:** Calendar proximity (`days_to_earnings`, `days_to_ex_dividend`), index rebalance flags, day-of-week, month.
 - **Observed Past Inputs:** Historical PIT returns, RSI, MACD, ATR, macro rates, news sentiment scores, `market_regime_code`.
 - **Outputs:** Dual forecast heads delivering Quantile Predictions ($q_{10}, q_{50}, q_{90}$) and Upward Directional Probabilities $\hat{p}^{(h)}$ across the full set of horizons $h \in \{1, 3, 5, 10, 20, 60\}$.
+
+**See Disposition Matrix Finding #12:** this TFT-only design is superseded by `ADP-005-champion-challenger-governance.md` (Approved 2026-07-26), which establishes TFT as a challenger evaluated against simpler baseline champions, not the sole model. Retained here as historical text pending the v2 architecture rewrite.
 
 ### 4.4 NLP & Sentiment Subsystem (`src/features/sentiment.py`)
 
@@ -321,6 +329,8 @@ CREATE TABLE IF NOT EXISTS features_sgx_daily (
 - Generate performance reports against STI ETF benchmark (E17.SI).
 - Matcha (ChatGPT) independent red-team audit review completed and findings dispositioned; final phase sign-off by Sprite.
 
+**Note (2026-07-26):** This 3-phase, 6-week roadmap is superseded in practice by the gated ~11-week roadmap in `docs/decision_log/ARCHITECTURE_v2_PROPOSED.md` §5, per approved ADPs 001–006. Retained here as historical text; `HANDOFF.md` carries the authoritative, granular task breakdown for actual implementation sequencing.
+
 ---
 
 ## 6. Disposition Matrix for Audit Findings
@@ -340,6 +350,7 @@ CREATE TABLE IF NOT EXISTS features_sgx_daily (
 | 9 | Gatekeeping Authority | Resolved | Updated Phase 3 verification gate wording to reflect Sprite as the final sign-off authority (Matcha advises, Sprite decides). |
 | 10 | Market Regime Semantics | Resolved | Added explicit aggregation protocol in Section 4.2 mapping per-article news sentiment polarity and technical volatility (ADX/ATR) into daily categorical `market_regime_code`. |
 | 11 | Team Structure Realignment | Noted, not a technical finding | Document governance table added 2026-07-24 reflecting WORKFLOWS.md v3.0 (Cola as Chief Architect / Protected Section owner, Beer as Claude Code implementation authority). §7 below updated to remove stale PM/PE references. See `WORKFLOWS.md` for full role definitions. |
+| 12 | Finding #3 (Pilot Universe) superseded — Relative Value coverage gap | Superseded by ADP-006 (Approved 2026-07-26) | Finding #3 above is **not edited** — this is a new row per the append-only rule. `docs/decision_log/ADP-006-pilot-universe-and-data-rights.md` identified that Finding #3's 5-name pilot universe cannot support Relative Value (a Core Philosophy per `INVESTMENT_PHILOSOPHY.md` §5.4) for Singtel or SIA, since neither has a real peer cohort within the pilot. Matcha independently reviewed this reopening and Sprite approved it 2026-07-26 (see `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`, Finding 6, Disposition: Accepted). Resolution: **two-tier universe** — dashboard/UI pilot unchanged (DBS, OCBC, UOB, Singtel, SIA); a broader, sector-grouped research/training universe is added for model training and dynamic peer-group construction, scope pending the Phase 0 vendor-rights trial (SGX Data Direct / EODHD / FMP). ADP-006 Amendment 2 additionally sets a mechanical peer-group floor (≥3 active comparables incl. target, ≥2 non-target peers) below which Relative Value features are withheld as `NULL` rather than computed on an undersized group. Dashboard-universe display performance is explicitly walled off from model-selection decisions (ADP-006 Amendment 1) to prevent overfitting to the small preselected set. |
 
 ---
 
@@ -357,6 +368,8 @@ With all schema targets synchronized and regime aggregation rules formalized in 
 4. Any item touching a material-risk category (`WORKFLOWS.md` §6) — which includes the PIT adjustment engine — requires mandatory Matcha review before disposition.
 5. Cola checks in at phase boundaries (or sooner if a Protected Section ADP is raised) rather than continuously.
 
+**Update (2026-07-26):** Six ADPs (001–006) are now Approved and supersede §1–§4's content in intent, per the note added to Document Governance above. See `HANDOFF.md` for the current, authoritative Phase 1 task breakdown reflecting the v2 design — this §7 text is retained for historical continuity but the actual next actions live in `HANDOFF.md`.
+
 ---
 
 ## Review Sign-off
@@ -368,4 +381,4 @@ Reviewer: Cola (Claude Desktop + Local MCP)
 Reason: PIT adjustment math verified correct (split/dividend factors, feature/label information separation); horizon set fully synchronized across math spec and schema; market_regime_code Bull/Bear conditions confirmed logically disjoint; regime_tag now correctly scoped as diagnostic-only metadata.
 ```
 
-*(Note: this sign-off predates the v3.0 governance restructuring and applies to the technical content of §1–§6 only, which was not altered by the 2026-07-24 governance update — only the document-governance header, §5/§7 role references, and the append-only Finding #11 note were added.)*
+*(Note: this sign-off predates the v3.0 governance restructuring and applies to the technical content of §1–§6 only, which was not altered by the 2026-07-24 governance update — only the document-governance header, §5/§7 role references, and the append-only Finding #11 note were added. It also predates the 2026-07-26 ADP bundle referenced in Finding #12; that bundle's own review is `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`, not this sign-off.)*

@@ -73,3 +73,74 @@ Matcha's final reply supplied two concrete numeric thresholds that were open que
 **Beer: this is your green light.** All Protected Section changes described in these six ADPs (plus the companion `ARCHITECTURE_v2_PROPOSED.md` draft) are now approved for implementation. Recommended sequencing unchanged from the first entry above: ADP-002 and ADP-003 first (foundation, note ADP-003's loader implementation is still blocked on Phase 0 vendor trial closing — schema shape is not blocked), then ADP-004/ADP-001 in parallel, then ADP-005, with ADP-006's broader universe scope also blocked on Phase 0 closing (its two-tier design and peer-floor rule are approved now; the specific expanded name list is not).
 
 One outstanding item not part of this ADP bundle, raised by Cola during the review but explicitly left unresolved within it (see `ADP-005` Open Question 3): whether model-governance promotion decisions should themselves be logged as immutable `reviews/`-style artifacts going forward. Recommend Sprite consider this as a `WORKFLOWS.md` §11 amendment separately, not blocking on it for Phase 1 kickoff.
+
+---
+
+**Author:** Cola
+**Timestamp:** 2026-07-26 (update 4 — canonical doc reconciled, granular Phase 1 tasks below)
+**Content:**
+
+**`docs/ARCHITECTURE.md` §6 updated.** New append-only row, Finding #12, added — supersedes Finding #3 per `ADP-006`'s approval without editing the original entry. Also added short pointer notes in §1, §4.2, §4.3, §5, §7 (not edits to the Protected Section technical content itself — no formulas, schemas, or DDL were changed) flagging that the six approved ADPs supersede those sections' text in intent pending the actual v2 rewrite. That rewrite is **not** done yet — `docs/ARCHITECTURE.md` §1–§4 still show the pre-ADP v1 design as their literal text. Treat the ADPs and `ARCHITECTURE_v2_PROPOSED.md` as authoritative wherever they conflict with the untouched v1 text, exactly as the new note says.
+
+**Granular Phase 1 task breakdown follows below.** Foundation-tier only (ADP-002, ADP-003 schema shape) — this is deliberately not a full Phase 1–5 breakdown in one shot; later phases get their own HANDOFF entries once foundation tasks are underway, so this list stays actionable rather than speculative.
+
+### Phase 1 Tasks — Foundation (ADP-002 + ADP-003 schema)
+
+Each task lists: what to build, which approved ADP section it implements, and its gate/exit criterion. Work sequentially; do not start a task whose dependency isn't checked off.
+
+**1.1 — WSL Scaffolding & Virtual Environment Initialization**
+- Standard project scaffold: `src/`, `tests/`, `data/`, venv, dependency pins (DuckDB, pandas, pytest at minimum for this phase).
+- Exit criterion: `pytest` runs (even with zero tests) with no import errors.
+
+**1.2 — `ingestion_events` table + write-path discipline**
+- Implements: `ADP-002-bitemporal-versioning-calendar.md`, Amendment 1.
+- Build the `ingestion_events` table exactly as specified (append-only, `event_type` CHECK constraint, `payload_snapshot` JSON, `source_response_metadata` JSON).
+- Add the CI guard: a script/check that fails the build if `UPDATE`/`DELETE` statements targeting `ingestion_events` appear anywhere in `src/`.
+- Exit criterion: table created via migration script; CI guard test written and passing (i.e., it correctly fails on a deliberately-introduced violation, then passes once removed — write both cases as tests).
+
+**1.3 — Raw price table `raw_sgx_ohlcv`, versioned**
+- Implements: `ADP-002`, `ARCHITECTURE_v2_PROPOSED.md` §3.1.
+- Surrogate-key schema (`record_id`, `source_id`, `source_version`, `content_hash`, `available_at`, `superseded_by`) — no natural-key `PRIMARY KEY (symbol, trade_date)`.
+- Adapter interface stub only at this stage (no live vendor call yet — Phase 0 not closed) — write against a fixture/mock payload so the schema and versioning logic can be tested independently of vendor selection.
+- Exit criterion: unit test proves that ingesting a "corrected" version of an existing `(symbol, trade_date)` creates a new row with `superseded_by` populated on the prior row, not an overwrite.
+
+**1.4 — Corporate actions table, versioned**
+- Implements: `ADP-002`, `ARCHITECTURE_v2_PROPOSED.md` §3.2.
+- Same versioning pattern as 1.3.
+- Exit criterion: same overwrite-vs-version test pattern as 1.3, applied to a dividend correction scenario.
+
+**1.5 — Corporate calendar table with tiered availability**
+- Implements: `ADP-002`, Amendment 2; `ARCHITECTURE_v2_PROPOSED.md` §3.3.
+- `event_date_status` (`ESTIMATED`/`CONFIRMED`/`REVISED`), `announced_at`, tiered by event type per the amendment.
+- Exit criterion: test proves `days_to_earnings`-equivalent precise encoding is rejected/blocked for `ESTIMATED` rows at the data-access layer (not just documented) — i.e., a query function or view that returns precise day-counts should refuse or return `NULL` for `ESTIMATED`-only rows, only succeeding once a `CONFIRMED` row exists.
+
+**1.6 — PIT resolution logic in `pit_store.py`**
+- Implements: `ADP-002` §2.1–§2.2 (bitemporal filtration extended with `available_at`).
+- "Latest non-superseded version as of `t`" query logic, filtering strictly on `available_at ≤ t`, not `ingested_at`.
+- Exit criterion: PIT-replay test — ingest a sequence of versioned observations with different `available_at` timestamps, then confirm a query as-of an earlier `t` correctly excludes later corrections. **This is the actual gate test for the "PIT/data foundation" row in ADP-005's gate table** — write it now, since it's foundational, not deferred to Phase 3/4.
+
+**1.7 — `raw_sgx_fundamentals` schema (shape only, no loader yet)**
+- Implements: `ADP-003`, Amendment 1; `ARCHITECTURE_v2_PROPOSED.md` §3.4.
+- Full schema including `data_authority`, `extraction_method`, `extraction_doc_ref`, `reviewer_id`, `review_timestamp`, `review_status`.
+- **No vendor loader implementation in this task** — blocked on Phase 0. This task is schema-only, tested against fixture data.
+- Exit criterion: schema created; unit test proves a row with `data_authority = 'EXTRACTED_LLM'` and no `reviewer_id` cannot have any feature referencing it reach `validation_status = 'PROMOTED'` in `feature_definitions` (test the constraint/join-check logic directly, even with `feature_definitions` mostly empty at this stage).
+
+**1.8 — `feature_definitions` table + lens `CHECK` constraint**
+- Implements: `ADP-001`; `ARCHITECTURE_v2_PROPOSED.md` §3.8.
+- Full schema with `primary_lens`, `lens_role`, `horizon_weight_prior`, `validation_status` CHECK constraints.
+- Exit criterion: test proves an attempt to register a feature with an invalid lens value, or with no lens at all, is rejected at the database level, not just caught in application code.
+
+**1.9 — Phase 1 gatekeeper run**
+- Run full `pytest` suite for tasks 1.1–1.8 together.
+- Confirm no `UPDATE`/`DELETE` violations anywhere in the codebase against `ingestion_events` or any versioned raw table's superseded rows.
+- **This task itself is a `WORKFLOWS.md` §6 material-risk category** (PIT/data contracts) — log the outcome as a review artifact per §11 once complete, even though the ADP itself already went through Matcha review; the *implementation* verification is a separate check from the *design* review.
+- Exit criterion: all tests green; gatekeeper log entry appended to this file (new HANDOFF.md entry, not edited into this one).
+
+### What's Deliberately Not in This Phase 1 Batch
+
+- No vendor adapter implementation (SGX Data Direct / EODHD / FMP) — blocked on Phase 0, tracked separately.
+- No `ADP-004` (macro regime) or `ADP-001`'s model-side gating layer — those depend on this foundation existing first, and are their own HANDOFF entry once 1.1–1.9 are green.
+- No `ADP-005` baseline models — depends on both the foundation (this batch) and the feature registry (`ADP-001`, next batch).
+- No `ADP-006` broader-universe loading — blocked on Phase 0 closing, same as `ADP-003`'s loader.
+
+**Next action:** Beer begins with Task 1.1. Cola available for clarification on any schema/amendment detail; not expected to check in until Task 1.9's gatekeeper run completes or a Protected Section question arises mid-implementation.
