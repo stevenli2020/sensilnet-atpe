@@ -1,11 +1,11 @@
 # ADP-006: Pilot UI Universe vs. Broader Research Universe, and Data Rights
 
-**Status:** OPEN (amended post-Matcha-review, still pending Sprite disposition)
+**Status:** APPROVED (per Sprite disposition, `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`, 2026-07-26 — all six bundle findings Accepted). Finding #3 in `docs/ARCHITECTURE.md` §6 to be superseded by a new disposition-matrix row referencing this ADP, per the append-only rule — not edited.
 **Author:** Cola (Claude Desktop + Local MCP)
-**Date:** 2026-07-26 (original); amended 2026-07-26 in response to Matcha review Finding 6
+**Date:** 2026-07-26 (original); amended 2026-07-26 in response to Matcha review Finding 6; amended again 2026-07-26 to fold Matcha's final-reply numeric threshold (Amendment 2)
 **Protected sections affected:** `docs/ARCHITECTURE.md` §1 (Vision — Pilot Universe section), §6 (Disposition Matrix — **new row required, not an edit to Finding #3**)
-**Business-layer impact:** YES, significantly — vendor cost/selection, data-licensing budget, and this ADP explicitly **reopens a previously Resolved, independently-audited finding**. **Route to Sprite for explicit approval; this is not a routine technical ADP.**
-**Material-risk category (WORKFLOWS.md §6):** YES — "Data source and licence decisions" directly, plus this specific ADP reopens Finding #3 which was itself independently reviewed by Matcha and signed off by Sprite in the original disposition round. **Mandatory Matcha review required before Sprite disposition — treat with more scrutiny than a routine ADP, not less, given it reopens settled work.**
+**Business-layer impact:** YES, significantly — vendor cost/selection, data-licensing budget, and this ADP explicitly **reopens a previously Resolved, independently-audited finding**. **Sprite has explicitly approved this reopening** — see disposition.
+**Material-risk category (WORKFLOWS.md §6):** YES — "Data source and licence decisions" directly, plus this specific ADP reopens Finding #3 which was itself independently reviewed by Matcha and signed off by Sprite in the original disposition round. **Mandatory Matcha review complete — see disposition above.**
 
 ---
 
@@ -22,13 +22,13 @@ However, `INVESTMENT_PHILOSOPHY.md` §5.4 (Relative Value, a Core Philosophy) re
 1. **Dashboard/UI pilot universe**: unchanged — DBS, OCBC, UOB, Singtel, SIA. Preserves the original proposal's "under 5 minutes on a home PC" lightweight constraint and keeps the dashboard focused.
 2. **Research/training universe**: broader, sector-grouped (Banks, REITs, Telcos, Property, Shipping, Industrial Conglomerates per `INVESTMENT_PHILOSOPHY.md` §5.4), used to train models and compute dynamic peer groups, so Relative Value is actually implementable as designed — even for dashboard names outside a well-populated sector.
 
-This is explicitly **not** a silent replacement of Finding #3. If approved, Finding #3 remains untouched (append-only per `WORKFLOWS.md` §6) and a **new** disposition-matrix row is added: *"Finding #3 superseded by ADP-006 — pilot universe (dashboard) unchanged; research/training universe expanded for Relative Value coverage."*
+This is explicitly **not** a silent replacement of Finding #3. Finding #3 remains untouched (append-only per `WORKFLOWS.md` §6) and a **new** disposition-matrix row is added: *"Finding #3 superseded by ADP-006 — pilot universe (dashboard) unchanged; research/training universe expanded for Relative Value coverage."*
 
 ## Data-Rights Discipline (see also ADP-003)
 
 - **yfinance: personal, disposable proof-of-concept only** — not used to source the expanded research universe in production. Its documentation is explicit that it is research/education-oriented and defers to Yahoo's own terms for actual data rights.
 - **No SGXNET scraper as a default production source** — SGX's website terms restrict automated storage/reuse without permission.
-- **Before this ADP can be dispositioned as Accepted**, the following must be confirmed via trial/quote from SGX Data Direct, EODHD, and FMP (a documented 30–50-name coverage test spanning banks, REITs, telecoms, transport, property, industrials):
+- **Before implementation begins against this ADP**, the following must be confirmed via trial/quote from SGX Data Direct, EODHD, and FMP (a documented 30–50-name coverage test spanning banks, REITs, telecoms, transport, property, industrials):
   - Symbol and delisted-name coverage
   - 10-year EOD price history depth
   - Financial-statement completeness (see ADP-003)
@@ -40,17 +40,17 @@ This is explicitly **not** a silent replacement of Finding #3. If approved, Find
 
 **Expectation, not a result (to be confirmed by trial):** SGX Data Direct as strongest candidate for authoritative prices/announcements/corporate actions/structured issuer data; EODHD/FMP as rapid-development candidates for generic fundamentals; PDF extraction as a controlled fallback only, never the primary source.
 
-**This ADP's schema/design shape (the two-tier universe structure) can be approved now. The specific sector list, name count, and provider selection are blocked on the Phase 0 trial closing** — this ADP does not ask Sprite to approve a specific expanded list today, only the two-tier design and the requirement that Finding #3 be superseded via a new row, not edited.
+**This ADP's schema/design shape (the two-tier universe structure, and Amendment 2's peer-floor rule) is approved now. The specific sector list, name count, and provider selection remain blocked on the Phase 0 trial closing.**
 
 ## Rationale
 
 Resolves a genuine conflict between an approved Core Philosophy (Relative Value) and a previously-resolved scoping decision, without violating the disposition matrix's append-only discipline. Keeps the lightweight dashboard constraint from `INITIAL_PROPOSAL.md` intact by not conflating "what the UI shows" with "what the model trains on."
 
-## Open Questions for Matcha Review
+## Open Questions for Matcha Review — Resolved
 
-1. Given this reopens an already-audited finding, does the original review process require anything beyond a standard Matcha review — e.g., should Matcha's review explicitly reference and respond to the original Finding #3 reasoning, not just evaluate the new proposal in isolation?
-2. Is the two-tier (dashboard vs. research universe) split itself sound, or does training on a broader universe than the dashboard displays introduce any distributional-shift risk between what the model learns and what it's ultimately evaluated/displayed on? — **Answered by Matcha Finding 6: yes, a real risk exists if model-selection is tuned against dashboard-name performance. See Amendment 1 below.**
-3. Should minimum peer-group size (e.g., "no sector with fewer than N names") be an explicit, checkable requirement in `ref_sector_classification` (see `ARCHITECTURE_v2_PROPOSED.md` §3.7) rather than an implicit expectation? — **Still open; recommend Sprite decide a minimum N as part of Phase 0 universe scoping, informed by whatever coverage the vendor trial actually returns per sector.**
+1. Given this reopens an already-audited finding, does the original review process require anything beyond a standard Matcha review? — **Matcha's review directly engaged with the Finding #3 reasoning rather than evaluating in isolation (see Finding 6's description), which satisfies this concern.**
+2. Is the two-tier split sound, or does it introduce distributional-shift risk between what the model trains on and what it's displayed/evaluated on? — **Resolved by Matcha Finding 6: yes, a real risk exists absent an explicit separation rule. See Amendment 1.**
+3. Should minimum peer-group size be an explicit, checkable requirement rather than an implicit expectation? — **Resolved by Matcha's final reply and Amendment 2 below: Matcha explicitly declined to defer this in full to Phase 0, and specified a concrete mechanical floor now.**
 
 ---
 
@@ -67,6 +67,16 @@ Resolves a genuine conflict between an approved Core Philosophy (Relative Value)
 - This ordering is enforced procedurally, not just by convention: the Phase 3/4 implementation spec should generate the dashboard-performance report as a downstream, read-only step that runs strictly after a model has already been promoted per the research-universe gates — not as a parallel report generated during development, which would make it too easy to peek at and informally tune against.
 - This directly parallels standard train/validation/test separation discipline, extended to a "trained-on vs. displayed-on" distinction specific to this project's two-tier universe design.
 
+## Amendment 2 (post-Matcha-final-reply — numeric floor for Open Question 3)
+
+**Trigger:** Matcha final reply (`reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`), responding to Finding 6 — explicitly declined to defer the entire peer-size question to Sprite/Phase 0, and proposed a mechanical floor now. Accepted per Sprite's disposition, which noted Matcha's explicit recommendation not to defer this specific mechanical minimum.
+
+**Rule, added to `ref_sector_classification`-driven peer-group construction (`ARCHITECTURE_v2_PROPOSED.md` §3.7):** No Relative Value feature may be promoted for a given symbol-date unless the as-of peer group contains:
+- at least **3 active comparable securities total** (including the target), **and**
+- at least **2 non-target peers**
+
+Below this floor, Relative Value features for that symbol-date are `NULL`/withheld rather than computed from an undersized pseudo-peer set. The broader sector list, name count, and provider selection remain deferred to Sprite pending the Phase 0 vendor trial, per the original ADP — this floor applies regardless of how that broader scoping resolves.
+
 ## Disposition
 
-*(Pending Matcha final reply, then Sprite recording per WORKFLOWS.md §10. Given this reopens Finding #3, recommend Sprite review the original Finding #3 reasoning alongside this ADP before dispositioning. Note Matcha's Finding 6 explicitly recommends accepting the Finding #3 reopening as justified — this should be weighed in Sprite's final decision.)*
+**Accepted.** See `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md` Disposition section, Finding 6 entry, recorded by Sprite 2026-07-26. This ADP's `Status` is updated to `APPROVED` accordingly. Finding #3 supersession row to be added to `docs/ARCHITECTURE.md` §6 disposition matrix as a new append-only entry (not an edit) as part of implementation kickoff.

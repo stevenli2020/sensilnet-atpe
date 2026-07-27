@@ -126,19 +126,67 @@ Final reply under the bounded disagreement loop. I reviewed Cola's response and 
 **Finding 6 — Satisfied with a peer-floor note.** ADP-006 now correctly separates research-universe validation from dashboard-universe display performance, and the rule that dashboard performance is reported only after model selection is finalized closes the dashboard-name overfitting gap. For ADP-006 Open Question 3, I do **not** recommend leaving the entire peer-size rule to Sprite after Phase 0. The exact sector list and universe count can be deferred to Sprite/vendor coverage, but the ADP should lock one mechanical minimum now: **no Relative Value feature should be promoted for a symbol-date unless the as-of peer group contains at least 3 active comparable securities total, including the target, and at least 2 non-target peers.** Below that floor, Relative Value features for that symbol-date should be `NULL`/withheld rather than computed from an undersized pseudo-peer set.
 
 Overall final position: the amendments satisfy the six original findings for purposes of Sprite disposition, provided the amended ADP text, not the pre-review text, is the version carried forward.
-- **Sprite decision:** *(filled in by Sprite only - Accepted / Deferred / Rejected)*
+- **Sprite decision:** Accepted, all six findings. See Disposition section below.
 
 ---
 
 ## Disposition
 
-*(Owned by PM/Sprite per Condition 1 - Beer does not fill this in.)*
+*(Recorded directly by Sprite per WORKFLOWS.md §10 — no intermediary recording role exists.)*
+
+```text
+Finding: 1 — Source versioning still allows provenance gaps in PIT replay
+Disposition: Accepted
+Who: Sprite
+Date: 2026-07-26
+Reason: Amendment (ingestion_events append-only log) satisfies the finding per Matcha's final reply. Matcha's residual note (CI grep-for-UPDATE/DELETE is a minimum guard, not the whole enforcement story once migrations/notebooks/direct DB scripts are considered) is accepted as a documented limitation for now, not a blocker to acceptance.
+```
+
+```text
+Finding: 2 — ESTIMATED calendar rows are unsafe as model known-future inputs
+Disposition: Accepted
+Who: Sprite
+Date: 2026-07-26
+Reason: Amendment (ESTIMATED rows excluded from precise days_to_earnings; CONFIRMED required for precise encoding) satisfies the finding per Matcha's final reply, with no residual note attached.
+```
+
+```text
+Finding: 3 — PDF/LLM extraction can become canonical by accident
+Disposition: Accepted
+Who: Sprite
+Date: 2026-07-26
+Reason: Amendment (data_authority field + mandatory reviewer gate before EXTRACTED_LLM-sourced features can be PROMOTED) satisfies the finding per Matcha's final reply. Residual note (mixed-source feature evaluation when a feature aggregates licensed + extracted rows) deferred to the Phase 1/2 implementation spec, not the ADP.
+```
+
+```text
+Finding: 4 — Champion baseline gates too weak to prove TFT earns its complexity
+Disposition: Accepted
+Who: Sprite
+Date: 2026-07-26
+Reason: Amendment (named single-lens benchmark rung — pure Momentum, pure Quality — required below the Core-lens baseline champion) satisfies the finding per Matcha's final reply, with no residual note attached.
+```
+
+```text
+Finding: 5 — Regime-stability validation lacks a PIT-safe regime definition after market_regime_code removal
+Disposition: Accepted
+Who: Sprite
+Date: 2026-07-26
+Reason: Amendment (Research Regime Classifier, separate from any model input, frozen before training) satisfies the cross-ADP gap per Matcha's final reply. Matcha's proposed numeric floor (>=3 independent episodes and >=30 symbol-episode observations per regime bucket, else gate reports INCONCLUSIVE) is accepted and folded into ADP-005 as Amendment 2 rather than left as a review-file note only.
+```
+
+```text
+Finding: 6 — Two-tier universe requires a guard against dashboard-name overfitting
+Disposition: Accepted
+Who: Sprite
+Date: 2026-07-26
+Reason: Amendment (dashboard-universe performance reported only, never a model-selection input; all gating decisions use research-universe metrics) satisfies the finding per Matcha's final reply. Matcha's proposed peer-group floor (>=3 active comparables total including target, >=2 non-target peers, else Relative Value features withheld as NULL) is accepted and folded into ADP-006 as Amendment 2 rather than deferred to Sprite/Phase 0 in full, per Matcha's explicit recommendation not to defer this specific mechanical minimum.
+```
 
 | Finding # | Status | Disposition Note | Decided By |
 |---|---|---|---|
-| 1 | Open | | |
-| 2 | Open | | |
-| 3 | Open | | |
-| 4 | Open | | |
-| 5 | Open | | |
-| 6 | Open | | |
+| 1 | Accepted | ingestion_events log satisfies finding; CI-guard residual accepted as documented limitation | Sprite, 2026-07-26 |
+| 2 | Accepted | ESTIMATED-row restriction satisfies finding | Sprite, 2026-07-26 |
+| 3 | Accepted | data_authority + reviewer gate satisfies finding; mixed-source evaluation deferred to implementation spec | Sprite, 2026-07-26 |
+| 4 | Accepted | Single-lens benchmark rung satisfies finding | Sprite, 2026-07-26 |
+| 5 | Accepted | Research Regime Classifier satisfies finding; numeric floor folded into ADP-005 Amendment 2 | Sprite, 2026-07-26 |
+| 6 | Accepted | Dashboard/research separation satisfies finding; peer floor folded into ADP-006 Amendment 2 | Sprite, 2026-07-26 |

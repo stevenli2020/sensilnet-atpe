@@ -47,3 +47,29 @@ Phase 0 (data-rights/coverage trial: SGX Data Direct, EODHD, FMP) is in progress
 - ADP-006 Open Question 3: minimum peer-group size per sector not yet set as an explicit checkable rule. Recommend Sprite decide once Phase 0 vendor trial shows actual per-sector coverage.
 
 **Next action:** Awaiting Matcha's final reply (per bounded disagreement loop — one reply, then Sprite dispositions). Once Matcha replies (or is silent, which per `WORKFLOWS.md` counts as the finding standing as filed), Sprite records dispositions for all six findings in the review file's Disposition table. No implementation should begin against any of these six ADPs until Sprite dispositions them as Accepted.
+
+---
+
+**Author:** Cola
+**Timestamp:** 2026-07-26 (update 3 — FINAL, bundle approved)
+**Content:**
+
+**Matcha's final reply received and Sprite disposition recorded.** All six findings: **Accepted.** See `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md` Disposition section for the full per-finding record. Bounded disagreement loop (`WORKFLOWS.md` §10.1) complete for this review.
+
+Matcha's final reply supplied two concrete numeric thresholds that were open questions, rather than deferring them — both now folded directly into ADP text as a second amendment round (not left as review-file commentary only):
+- **`ADP-005` Amendment 2:** TFT-promotion regime-stability gate is `INCONCLUSIVE` (not pass/fail) unless each of the 3 regime buckets has ≥3 independent historical episodes AND ≥30 symbol-episode observations.
+- **`ADP-006` Amendment 2:** No Relative Value feature may be promoted for a symbol-date unless the as-of peer group has ≥3 active comparables total (incl. target) AND ≥2 non-target peers; below that floor, withhold as `NULL`.
+
+**All six ADPs now `Status: APPROVED`:**
+- `ADP-001-lens-hierarchy-and-traceability.md`
+- `ADP-002-bitemporal-versioning-calendar.md` (+ 2 amendments)
+- `ADP-003-fundamentals-filings-schema.md` (+ 1 amendment)
+- `ADP-004-macro-regime-redesign.md` (+ 1 cross-ADP amendment, shared with 005)
+- `ADP-005-champion-challenger-governance.md` (+ 2 amendments, incl. numeric regime-stability floor)
+- `ADP-006-pilot-universe-and-data-rights.md` (+ 2 amendments, incl. numeric peer-floor)
+
+**Per `WORKFLOWS.md` §12, ADP lifecycle is `OPEN → APPROVED → IMPLEMENTED → ARCHIVED_AS_ADR`.** These six are now at `APPROVED`. They move to `IMPLEMENTED` as Beer builds against them, and to `ARCHIVED_AS_ADR` once implementation is verified complete.
+
+**Beer: this is your green light.** All Protected Section changes described in these six ADPs (plus the companion `ARCHITECTURE_v2_PROPOSED.md` draft) are now approved for implementation. Recommended sequencing unchanged from the first entry above: ADP-002 and ADP-003 first (foundation, note ADP-003's loader implementation is still blocked on Phase 0 vendor trial closing — schema shape is not blocked), then ADP-004/ADP-001 in parallel, then ADP-005, with ADP-006's broader universe scope also blocked on Phase 0 closing (its two-tier design and peer-floor rule are approved now; the specific expanded name list is not).
+
+One outstanding item not part of this ADP bundle, raised by Cola during the review but explicitly left unresolved within it (see `ADP-005` Open Question 3): whether model-governance promotion decisions should themselves be logged as immutable `reviews/`-style artifacts going forward. Recommend Sprite consider this as a `WORKFLOWS.md` §11 amendment separately, not blocking on it for Phase 1 kickoff.

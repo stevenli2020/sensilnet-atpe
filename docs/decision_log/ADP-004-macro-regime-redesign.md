@@ -1,6 +1,6 @@
 # ADP-004: Macro Regime Redesign — Removal of the Hard-Coded `market_regime_code` Label
 
-**Status:** OPEN (amended post-Matcha-review, still pending Sprite disposition)
+**Status:** APPROVED (per Sprite disposition, `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`, 2026-07-26 -- all six bundle findings Accepted)
 **Author:** Cola (Claude Desktop + Local MCP)
 **Date:** 2026-07-26 (original); amended 2026-07-26 in response to Matcha review Finding 5 (cross-ADP with ADP-005)
 **Protected sections affected:** `docs/ARCHITECTURE.md` §3.5 (`features_sgx_daily` schema — remove `market_regime_code` column), §4.2 (Feature Engineering — remove derivation protocol), §4.3 (Model Architecture — remove `market_regime_code` from Observed Past Inputs)

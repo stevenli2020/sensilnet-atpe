@@ -1,6 +1,6 @@
 # ADP-003: Fundamentals, Filings, and Earnings-Estimates Schema
 
-**Status:** OPEN (amended post-Matcha-review, still pending Sprite disposition)
+**Status:** APPROVED (per Sprite disposition, `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`, 2026-07-26 -- all six bundle findings Accepted)
 **Author:** Cola (Claude Desktop + Local MCP)
 **Date:** 2026-07-26 (original); amended 2026-07-26 in response to Matcha review Finding 3
 **Protected sections affected:** `docs/ARCHITECTURE.md` §3 (Schemas — new `raw_sgx_fundamentals`, `raw_sgx_announcements` tables), §4.1 (Ingestion responsibility expansion)

@@ -1,6 +1,6 @@
 # ADP-001: Investment Framework Traceability, Core/Supporting Hierarchy, and Horizon Metadata
 
-**Status:** OPEN
+**Status:** APPROVED (per Sprite disposition, `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`, 2026-07-26 -- all six bundle findings Accepted)
 **Author:** Cola (Claude Desktop + Local MCP)
 **Date:** 2026-07-26
 **Protected sections affected:** `docs/ARCHITECTURE.md` §1 (Vision), §3 (Schemas — new `feature_definitions` table), §4 (Component Responsibilities — §4.2, §4.3)

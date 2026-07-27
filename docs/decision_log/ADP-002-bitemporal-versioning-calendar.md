@@ -1,6 +1,6 @@
 # ADP-002: Bitemporal Data, Source Versioning, and Calendar Availability
 
-**Status:** OPEN (amended post-Matcha-review, still pending Sprite disposition)
+**Status:** APPROVED (per Sprite disposition, `reviews/2026-07-26_sensilnet-atpe-adps_matcha.md`, 2026-07-26 -- all six bundle findings Accepted)
 **Author:** Cola (Claude Desktop + Local MCP)
 **Date:** 2026-07-26 (original); amended 2026-07-26 in response to Matcha review Findings 1 and 2
 **Protected sections affected:** `docs/ARCHITECTURE.md` §2 (Data Contracts — PIT filtration extension), §3 (Schemas — `raw_sgx_ohlcv`, `raw_sgx_corporate_actions`, `raw_sgx_corporate_calendar` revisions), §4.1 (Ingestion & PIT Storage Engine responsibility)
